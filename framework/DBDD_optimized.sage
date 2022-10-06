@@ -40,7 +40,7 @@ class DBDD_optimized(DBDD):
     the basis computations, with some performance optimizations
     """
 
-    def __init__(self, B, S, mu, u=None, verbosity=1, homogeneous=False, float_type="ld", D=None, Bvol=None, circulant=False):
+    def __init__(self, B, S, mu, embedded_instance, u=None, verbosity=1, homogeneous=False, float_type="ld", D=None, Bvol=None, circulant=False):
         assert B or D
         self._dim = (B or D).nrows() # Lattice dimension
 
@@ -62,7 +62,7 @@ class DBDD_optimized(DBDD):
         self.Pi = identity_matrix(self._dim) # Embedding matrix
         self.Gamma = identity_matrix(self._dim) # Substitution matrix
 
-        super().__init__(B, S, mu, u=u,
+        super().__init__(B, S, mu, embedded_instance, u=u,
             verbosity=verbosity,
             homogeneous=homogeneous,
             float_type=float_type,

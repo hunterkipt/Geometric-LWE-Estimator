@@ -69,6 +69,11 @@ def hint_integration_wrapper(force=False,
                     self.logging(hint_to_string(
                         args[0], args[1]) + " + χ(σ²=%.3f)" % args[2],
                         style='DATA', priority=2, newline=False)
+                
+                if fn.__name__ == "integrate_central_ineq_hint":
+                    self.logging("-(%d) <= " % args[2] + hint_to_string(
+                        args[0], args[1]) + " <= (%d)zs" % args[2],
+                        style='DATA', priority=2, newline=False)
 
                 if fn.__name__ == "integrate_short_vector_hint":
                     self.logging(hint_to_string(
@@ -219,7 +224,7 @@ class DBDD_generic:
         if self.homogeneous:
             return vec(v)
         else:
-            return concatenate(v, -l)
+            return concatenate(v, [-l])
 
     @not_after_projections
     @hint_integration_wrapper()
@@ -255,12 +260,17 @@ class DBDD_generic:
         raise NotImplementedError("This method is not generic.")
 
     def estimate_attack(self, probabilistic=False, tours=1, silent=False,
-        ignore_lift_proba=False, lift_union_bound=False, number_targets=1):
+        ignore_lift_proba=False, lift_union_bound=False, number_targets=1, scale=False):
         """ Assesses the complexity of the lattice attack on the instance.
         Return value in Bikz
         """
         (Bvol, Svol, dvol) = self.volumes()
         dim_ = self.dim()
+
+        if scale:
+            coeff = self.ellip_norm() / dim_
+            dvol -= dim_ * ln(coeff) / 2
+
         beta, delta = compute_beta_delta(
             dim_, dvol, probabilistic=probabilistic, tours=tours, verbose=not silent,
             ignore_lift_proba=ignore_lift_proba, number_targets=number_targets, lift_union_bound=lift_union_bound)
@@ -305,6 +315,7 @@ class DBDD_generic:
         if indices is None:
             indices = range(n - 1 + self.homogeneous)
         while self.dim() > min_dim:
+            # print("integrate_q_vectors", self.dim(), min_dim)
             if (it % report_every == 0) and report_every > 1:
                 self.logging("[...%d]" % report_every, newline=False)
             Sd = self.S_diag()
@@ -315,7 +326,7 @@ class DBDD_generic:
             I += [i]
             try:
                 didit = self.integrate_short_vector_hint(
-                    vec(M[i]), catch_invalid_hint=False)
+                    vec(M[i]), catch_invalid_hint=False)  
                 if not didit:
                     break
                 J += [i]

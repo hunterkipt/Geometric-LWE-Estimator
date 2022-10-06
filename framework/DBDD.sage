@@ -12,7 +12,7 @@ class DBDD(DBDD_generic):
     the basis computations
     """
 
-    def __init__(self, B, S, mu, u=None, verbosity=1, homogeneous=False, float_type="ld", D=None, Bvol=None, circulant=False):
+    def __init__(self, B, S, mu, embedded_instance, u=None, verbosity=1, homogeneous=False, float_type="ld", D=None, Bvol=None, circulant=False):
         """constructor that builds a DBDD instance from a lattice, mean, sigma
         and a target
         ;min_dim: Number of coordinates to find to consider the problem solved
@@ -30,6 +30,7 @@ class DBDD(DBDD_generic):
         self.S = S
         self.PP = 0 * S  # Span of the projections so far (orthonormal)
         self.mu = mu
+        self.embedded_instance=embedded_instance
         self.homogeneous = homogeneous
         if homogeneous and scal(mu * mu.T) > 0:
             raise InvalidArgument("Homogeneous instances must have mu=0")
@@ -54,8 +55,10 @@ class DBDD(DBDD_generic):
     def volumes(self):
         if self.B is not None:
             Bvol = logdet(self.B * self.B.T) / 2
+            B = self.B
         else:
             Bvol = -logdet(self.D * self.D.T) / 2
+            B = dual_basis(self.D)
 
         S = self.S + self.mu.T * self.mu
         Svol = degen_logdet(S)
@@ -88,6 +91,7 @@ class DBDD(DBDD_generic):
                               invalidates=["primal"])
     def integrate_perfect_hint(self, v, l):
         V = self.homogeneize(v, l)
+        # assert V.ncols() == self.dim()
         VS = V * self.S
         den = scal(VS * V.T)
 
@@ -100,6 +104,36 @@ class DBDD(DBDD_generic):
         self.mu -= (num / den) * VS
         num = VS.T * VS
         self.S -= num / den
+
+    @not_after_projections
+    @hint_integration_wrapper(force=True, requires=["dual"],
+                              invalidates=["primal"])
+    def integrate_perfect_hint_ellip(self, v, l):
+        V = self.homogeneize(v, l)     
+
+        dim_ = self.dim()
+        self.S *= dim_
+        norm = sqrt(scal(V * self.S * V.T))
+        
+        alpha = (scal(V * self.mu.T)) / norm
+
+        #print(f"Alpha:{alpha}")
+        if alpha < -1 or alpha > 1:
+            raise InvalidHint("Redundant hint! Cut outside ellipsoid!")
+
+        if alpha*(-alpha) > 1 /dim_:
+            return
+        
+        b = (1 / norm) * V * self.S.T
+
+        coeff2 = (dim_ * dim_) / (dim_ * dim_ - 1) * (1 - alpha * alpha)
+
+        self.D = lattice_orthogonal_section(self.D, V)
+        self.expected_length -= 1
+        self.mu -= alpha * b
+        self.S -= b.T * b
+        self.S *= coeff2
+        self.S *= 1/dim_
 
     @not_after_projections
     @hint_integration_wrapper(force=True, requires=["dual"], invalidates=["primal"])
@@ -189,6 +223,211 @@ class DBDD(DBDD_generic):
         self.u = self.u * PV
         self.S = PV.T * self.S * PV
         self.PP += V.T * (V / scal(V * V.T))
+
+
+    def shape_LWE_approx_hint(self, A, b, m, q, D_s, D_e, error_exp=1):
+        print("Kannan shaping for LWE hints starts.")
+        _, s_s = average_variance(D_s)
+        _, s_e = average_variance(D_e)
+        s_c = n*s_s/12 
+        #s_c_vec = ((A * A.T)*s_s/(q*q) + s_e/(q*q)).diagonal() 
+        id_matrix = identity_matrix(m)
+        for i in range(m):
+            print(f"cut: {i}")
+            vec_v = concatenate(id_matrix[i]/q, A[i]/q)
+            # list_q_inverse = zeros(m)
+            # list_q_inverse[i] -= 1/q
+            # vec_q_inverse = vec(list_q_inverse)
+            # vec_v = concatenate(vec_q_inverse, A[i]/q)
+            self.integrate_approx_hint(vec_v,
+                                        b[0][i]/q,
+                                        s_c*error_exp, #s_c_vec[i]*error_exp
+                                        aposteriori=False, estimate=False)
+        print("Kannan shaping for LWE hints completes.")
+
+    @not_after_projections
+    @hint_integration_wrapper(force=True, requires=["primal"], invalidates=["dual"])
+    def integrate_central_symmetric_ineq_hint(self, v, l, bound):
+        """
+        V = [v, -l]
+        <V, center> - bound <= <V, secrets> <= <V, center> + bound
+        See Eq (3.1.19), Eq (3.1.20), Eq. (3.1.7) in Lovasz's the Ellipsoid Method.
+        """
+        V = self.homogeneize(v, l)
+
+        """
+        Rescaling the Covariance matrix to convert <= d to <=1:
+        (Not efficient if consecutively using ellipsoid method.)
+        """
+        dim_ = self.dim()
+        
+        self.S *= dim_
+        norm = sqrt(scal(V * self.S * V.T))
+        alpha = -bound / norm
+
+        if alpha < -1 / dim_:
+            raise RejectedHint("Redundant hint! Cut outside ellipsoid!")
+        if alpha >= 0:
+            raise InvalidHint("alpha cannot exceed 0!")
+        
+        b = (1 / norm) * V * self.S
+        a2 = alpha * alpha
+        coeff = (dim_ / (dim_ - 1)) * (1 - a2)
+        # self.S -= ((1 - (dim_ * a2)) / (1 - a2)) * b.T * b
+        # self.S *= coeff
+
+
+
+        self.S -= ((1 - (dim_ * a2)) / (1 - a2)) * b.T * b
+        self.S *= coeff
+
+        """
+        Recaling the Covariance matrix to convert <= d to <=1:
+        (Not efficient if consecutively using ellipsoid method.)
+        """
+        self.S *= 1/dim_
+
+    @not_after_projections
+    @hint_integration_wrapper(force=False, requires=["primal"], invalidates=["dual"])
+    def integrate_ineq_hint(self, v, bound):
+        """
+         <v, secret> <= bound
+        See Eq (3.1.11), Eq. (3.1.12) in Lovasz's the Ellipsoid Method.
+        """
+        dim_ = self.dim()
+
+        S = self.S * dim_
+        v = concatenate(v, vec([0]))
+        norm = sqrt(scal(v * S * v.T))
+        # print(f"num: {scal(v*self.mu.T) - bound}, denom: {norm}")
+        alpha = (scal(v * self.mu.T) - bound) / norm
+
+        #print(f"Alpha:{alpha}")
+        if alpha < -1 or alpha > 1:
+            raise InvalidHint("Redundant hint! Cut outside ellipsoid!")
+
+        if -1 <= alpha and alpha <= -1 /dim_:
+            return
+        
+        b = (1 / norm) * v * S.T
+
+        coeff = (1 + dim_ * alpha) / (dim_ + 1)
+        coeff2 = (dim_ * dim_) / (dim_ * dim_ - 1) * (1 - alpha * alpha)
+
+        center = coeff * b
+        S -= (2 * coeff) / (1 + alpha) * b.T * b
+        S *= coeff2
+
+        self.mu -= center
+        # self.mu[0, -1] = 1
+        self.S = S * 1/dim_
+
+    @not_after_projections
+    @hint_integration_wrapper(force=False)
+    def integrate_combined_hint(self, mu, Sigma):
+        dim_ = self.dim()
+        S = self.S * dim_
+        try:
+            mu_prime, S_prime = ellipsoid_intersection(self.mu[0,:-1], S[:-1,:-1], mu, Sigma)
+       
+        except ValueError:
+            raise RejectedHint("Intersection Doesn't Exist!")
+
+        self.mu = concatenate(mu_prime, [1])
+        self.S = (1/dim_) * block4(S_prime, zero_matrix(S_prime.nrows(), 1), 
+                                zero_matrix(1, S_prime.nrows()), zero_matrix(1,1))
+
+    #delete later
+    def shape_LWE_approx_perfect_hint_with_c(self, A, b, c, m, q, D_s, D_e, error_exp=1):
+        print("Kannan shaping for LWE hints_real c perfect starts.")
+        _, s_s = average_variance(D_s)
+        _, s_e = average_variance(D_e)
+        # s_c = n*s_s/12 
+        #s_c_vec = ((A * A.T)*s_s/(q*q) + s_e/(q*q)).diagonal() 
+        id_matrix = identity_matrix(m)
+        for i in range(m):
+            print(f"cut: {i}")
+            vec_v = concatenate(id_matrix[i]/q, A[i]/q)
+            # list_q_inverse = zeros(m)
+            # list_q_inverse[i] -= 1/q
+            # vec_q_inverse = vec(list_q_inverse)
+            # vec_v = concatenate(vec_q_inverse, A[i]/q)
+            if c[0][i] == 0:
+                self.integrate_perfect_hint(vec_v,
+                                        b[0][i]/q),
+                                        
+            else:
+                self.integrate_approx_hint(vec_v,
+                                        b[0][i]/q,
+                                        abs(c[0][i])*error_exp, #s_c_vec[i]*error_exp
+                                        aposteriori=False, estimate=False)
+        print("Kannan shaping for LWE hints_real c perfect completes.")
+    #delete later
+    def shape_LWE_approx_hint_with_c(self, A, b, c, m, q, D_s, D_e, error_exp=1, narrow_factor = 1):
+        print("Kannan shaping for LWE approx hints_real c starts.")
+        _, s_s = average_variance(D_s)
+        _, s_e = average_variance(D_e)
+        # s_c = n*s_s/12 
+        #s_c_vec = ((A * A.T)*s_s/(q*q) + s_e/(q*q)).diagonal() 
+        id_matrix = identity_matrix(m)
+        for i in range(m):
+            print(f"cut: {i}")
+            vec_v = concatenate(id_matrix[i]/q, A[i]/q)
+            # list_q_inverse = zeros(m)
+            # list_q_inverse[i] -= 1/q
+            # vec_q_inverse = vec(list_q_inverse)
+            # vec_v = concatenate(vec_q_inverse, A[i]/q)
+            if c[0][i] == 0:
+                self.integrate_approx_hint(vec_v,
+                                        b[0][i]/q,
+                                        narrow_factor*error_exp, #s_c_vec[i]*error_exp
+                                        aposteriori=False, estimate=False)
+            else:
+                self.integrate_approx_hint(vec_v,
+                                        b[0][i]/q,
+                                        abs(c[0][i])*error_exp, #s_c_vec[i]*error_exp
+                                        aposteriori=False, estimate=False)
+        print("Kannan shaping for LWE approx hints_real c completes.")
+    
+    #delete later
+    def shape_LWE_ellipsoid_hint_with_c(self, A, b, c, m, q, D_s, D_e, error_exp=1, narrow_factor = 1):
+        print("Kannan shaping for LWE ellipsoid hints_real c starts.")
+        _, s_s = average_variance(D_s)
+        _, s_e = average_variance(D_e)
+        # s_c = n*s_s/12 
+        #s_c_vec = ((A * A.T)*s_s/(q*q) + s_e/(q*q)).diagonal() 
+        id_matrix = identity_matrix(m)
+        for i in range(m):
+            print(f"cut: {i}")
+            vec_v = concatenate(id_matrix[i]/q, A[i]/q)
+            # list_q_inverse = zeros(m)
+            # list_q_inverse[i] -= 1/q
+            # vec_q_inverse = vec(list_q_inverse)
+            # vec_v = concatenate(vec_q_inverse, A[i]/q)
+            if c[0][i] == 0:
+                self.integrate_central_symmetric_ineq_hint(vec_v,
+                                        b[0][i]/q,
+                                        narrow_factor*error_exp, #s_c_vec[i]*error_exp
+                                        estimate=False)
+            else:
+                self.integrate_central_symmetric_ineq_hint(vec_v,
+                                        b[0][i]/q,
+                                        abs(c[0][i])*error_exp, #s_c_vec[i]*error_exp
+                                        estimate=False)
+        print("Kannan shaping for LWE ellipsoid hints_real c completes.")
+
+    def ellip_norm(self):
+        if self.u is None:
+            raise InvalidArgument("Solution vector must exist to calculate norm")
+        # DBDD_S = round_matrix_to_rational(self.S)
+        try:
+            inv = (self.S + self.mu.T*self.mu).inverse()
+
+        except AssertionError:
+            inv = DBDD_S.inverse()
+
+        norm = scal(self.u * inv * self.u.T)
+        return RR(norm)
 
     def attack(self, beta_max=None, beta_pre=None, randomize=False, tours=1):
         """

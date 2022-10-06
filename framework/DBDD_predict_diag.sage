@@ -23,7 +23,7 @@ class DBDD_predict_diag(DBDD_generic):
     prediction mode
     """
 
-    def __init__(self, B, S, mu, u=None, homogeneous=False, verbosity=1, D=None, Bvol=None):
+    def __init__(self, B, S, mu, embedded_instance, u=None, homogeneous=False, verbosity=1, D=None, Bvol=None):
         """constructor that builds a DBDD instance from a lattice, mean, sigma
         and a target
         ;min_dim: Number of coordinates to find to consider the problem solved
@@ -43,6 +43,7 @@ class DBDD_predict_diag(DBDD_generic):
         # Orthogonal span of the intersection so far so far (orthonormal)
         self.PI = 0 * self.S
         self.PI[-1] = 1
+        self.embedded_instance=embedded_instance
         self.u = u
         self.u_original = u
         self._dim = S.nrows()

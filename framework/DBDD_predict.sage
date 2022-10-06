@@ -11,12 +11,13 @@ class DBDD_predict(DBDD_generic):
     in a prediction mode
     """
 
-    def __init__(self, B, S, mu, u=None, homogeneous=False, verbosity=1, D=None, Bvol=None):
+    def __init__(self, B, S, mu, embedded_instance, u=None, homogeneous=False, verbosity=1, D=None, Bvol=None):
 
         self.Bvol = Bvol or logdet(B)
         assert check_basis_consistency(B, D, Bvol)
         self.verbosity = verbosity
         self.S = S
+        self.embedded_instance=embedded_instance
         self._dim = S.nrows()
         self.PP = 0 * S  # Span of the projections so far (orthonormal)
         # Orthogonal span of the intersection so far so far (orthonormal)

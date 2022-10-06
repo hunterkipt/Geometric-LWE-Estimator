@@ -1,7 +1,9 @@
 from numpy.random import choice as np_random_choice
-from numpy.linalg import slogdet, qr, cholesky
-from numpy import array
+from numpy.linalg import slogdet, qr, cholesky, eigvalsh
+from numpy.linalg import inv as np_inv
+from numpy import array, zeros
 from math import pi, exp
+from scipy.linalg import ldl
 
 print_style = {'SUCCESS': '\x1b[1;37;42m',
                'FAILURE': '\x1b[1;37;41m',
@@ -420,3 +422,160 @@ def get_distribution_from_table(table, multiplicative_factor):
     _, var = average_variance(D_s)
     assert(abs(sum([D_s[i] for i in support]) - 1) < 1e-5)
     return D_s
+
+def ellipsoid_embedding(A, q, s_s, s_e, non_diag_sigma=False, full_sigma=False, homogeneous=True):
+    """
+    Construct initial embedding for ellipsoid2 embedding method
+    """
+    n = A.ncols()
+    m = A.nrows()
+    zero1 = zero_matrix(ZZ, n, m)
+    zero2 = zero_matrix(ZZ, m, n)
+    zero3 = zero_matrix(ZZ, m + n, 1)
+    zero4 = zero_matrix(ZZ, 1, m + n)
+
+    sigma_s = identity_matrix(n) * s_s
+    sigma_1 = identity_matrix(1) * 1
+
+    if non_diag_sigma:
+        sigma_c = ((s_s)/(q*q) * A*A.T) + ((1/12) * identity_matrix(m))
+    
+    else:
+        sigma_c = diagonal_matrix(((A * A.T)*s_s/(q*q) + s_e/(q*q)).diagonal())
+        sigma_c_list = [scal(vec(A[i])*vec(A[i]).T)*s_s/q**2 + s_e/q**2 for i in range(m)]
+        assert sigma_c == diagonal_matrix(sigma_c_list)
+
+
+    if full_sigma:
+        AA = (s_s/q)*A
+        upleft_mat = block4(sigma_s*1, AA.T, AA, sigma_c*1)
+    
+    else:
+        upleft_mat = block4(sigma_s*1, zero1, zero2, sigma_c*1)
+
+    if homogeneous:
+        return block4(upleft_mat, zero3, zero4, sigma_1)
+    
+    else:
+        return upleft_mat
+
+def kannan_ellipsoid(A, b, q, s_s=1, s_e=1, Sigma_s_e = None, mean_s=None, mean_e=None, homogeneous=True):
+    """
+    Sigma_s_e: covariance of [s || e]
+    """
+    n = A.ncols()
+    m = A.nrows()
+    
+    zero1 = zero_matrix(ZZ, m, n)
+    zero2 = zero_matrix(ZZ, m + n, 1)
+    if mean_s is None:
+        mean_s = vec([0] * n)
+    if mean_e is None:
+        mean_e = vec([0] * m)
+    # Create Initial Transformation Matrix and Mean
+    upleft_mat = block4(q*identity_matrix(m), zero1, -A.T, identity_matrix(n))
+    b_new = b - mean_s * A.T - mean_e
+
+    if not homogeneous:
+        upleft_mat_inv = block4(1/q*identity_matrix(m), zero1, A.T/q, identity_matrix(n)) #upleft_mat.inverse()
+        mu = concatenate(-b_new/q, mean_s)#b0 * upleft_mat_inv
+        if not Sigma_s_e:
+            Sigma_s_e = diagonal_matrix(QQ, m*[s_e] + n*[s_s]) 
+        BB_inv = upleft_mat_inv.T * Sigma_s_e * upleft_mat_inv * (n + m)
+        return mu, BB_inv
+
+    b0 = concatenate(-b, zero_matrix(QQ, 1, n)) #double check if we can use b_new
+    B = block4(upleft_mat, zero2, b0, identity_matrix(1))
+    B_inv = B.inverse()
+    return zero_matrix(QQ, 1, m+n+1), (B_inv.T * B_inv)*(n + m +1)
+
+def kannan_ellipsoid_ldl(A, b, q, s_s=1, s_e=1, Sigma_s_e=None, mean_s=None, mean_e=None, homogeneous=True):
+    """
+    Sigma_s_e: covariance of [s || e]
+    """
+    n = A.ncols()
+    m = A.nrows()
+    
+    zero1 = zero_matrix(ZZ, m, n)
+    zero2 = zero_matrix(ZZ, m + n, 1)
+    if mean_s is None:
+        mean_s = vec([0] * n)
+    if mean_e is None:
+        mean_e = vec([0] * m)
+    # Create Initial Transformation Matrix and Mean
+    upleft_mat = block4(q*identity_matrix(m), zero1, -A.T, identity_matrix(n))
+    b_new = b - mean_s * A.T - mean_e
+
+    if not homogeneous:
+        upleft_mat_inv = block4(1/q*identity_matrix(m), zero1, A.T/q, identity_matrix(n)) #upleft_mat.inverse()
+        mu = concatenate(-b_new/q, mean_s)#b0 * upleft_mat_inv
+        if not Sigma_s_e:
+            Sigma_s_e = diagonal_matrix(QQ, n*[s_s] + m*[s_e])
+
+        BB_inv = upleft_mat_inv.T * Sigma_s_e * upleft_mat_inv * (n + m)
+        # BB_inv = 2*block4(BB_inv + mu.T*mu, mu.T, mu, matrix([1]))
+        # mu = zero_matrix(1, n+m+1)
+
+        lu, d, perm = ldl(BB_inv)
+        return mu, BB_inv, matrix(lu[perm, :]), matrix(d)
+
+    b0 = concatenate(-b, zero_matrix(QQ, 1, n)) #double check if we can use b_new
+    B = block4(upleft_mat, zero2, b0, identity_matrix(1))
+    B_inv = B.inverse()
+    return zero_matrix(QQ, 1, m+n+1), (B_inv.T * B_inv)*(n + m +1)
+
+def kannan_ellipsoid_mean_update(A, b, mean_s=None, mean_e=None):
+    '''
+    when the mean of s and e is nonzero
+    output mean of s||c
+    '''
+    m = A.nrows()
+    n = A.ncols()
+    if mean_s is None:
+        print("None in mean_s@kannan_ellipsoid_mean_update")
+        mean_s = vec([0] * n)
+    if mean_e is None:
+        print("None in mean_e@kannan_ellipsoid_mean_update")
+        mean_e = vec([0] * m)
+    # print("1@mean_s_c_update")
+    zero1 = zero_matrix(ZZ, m, n)
+    # print("2@mean_s_c_update")
+    # print("dimension match?", b.ncols(), A.nrows())
+    b_new = b - mean_s * A.T - mean_e
+    # print("3@mean_s_c_update")
+    mu = concatenate(mean_s, -b_new/q)
+    return mu
+def round_to_rational_precision(x, rounding_digit):
+    A = ZZ(round(x * rounding_digit))
+    return QQ(A) / QQ(rounding_digit)
+def round_matrix_to_rational_precision(M, rounding_digit):
+    A = matrix(ZZ, (rounding_digit * matrix(M)).apply_map(round))
+    return matrix(QQ, A / rounding_digit)
+def round_vector_to_rational_precision(v, rounding_digit):
+    A = vec(ZZ, (rounding_digit * vec(v)).apply_map(round))
+    return vec(QQ, A / rounding_digit)
+
+# def kannan_ellipsoid(A, b, q, s_s=1, s_e=1, homogeneous=True):
+#     n = A.ncols()
+#     m = A.nrows()
+    
+#     zero1 = zero_matrix(ZZ, m, n)
+#     zero2 = zero_matrix(ZZ, m + n, 1)
+
+#     # Create Initial Transformation Matrix and Mean
+#     upleft_mat = block4(identity_matrix(n), -A.T, zero1, q*identity_matrix(m))
+#     b0 = concatenate(zero_matrix(QQ, 1, n), -b)
+    
+#     scaling_mat = diagonal_matrix(QQ, n*[s_s] + m*[s_e])
+
+#     if not homogeneous:
+#         upleft_mat_inv = upleft_mat.inverse()
+#         mu = b0 * upleft_mat_inv
+#         BB_inv = upleft_mat_inv.T * scaling_mat * upleft_mat_inv * (n + m)
+#         return mu, BB_inv
+
+#     B = block4(upleft_mat, zero2, b0, identity_matrix(1))
+#     B_inv = B.inverse()
+#     return zero_matrix(QQ, 1, m+n+1), (B_inv.T * B_inv)*(n + m +1)
+
+
