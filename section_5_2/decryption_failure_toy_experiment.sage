@@ -211,7 +211,7 @@ if extract_hints:
                 continue
         
             # Create variables
-            print(f"Processing line {index}", end="\r")
+            # print(f"Processing line {index}", end="\r")
             mu_enc, Sp = line.strip().split("\\\\")
             mu_enc = [int(mu) for mu in mu_enc.split(",")]
             Sp = [int(s) for s in Sp.split(",")]
@@ -252,7 +252,7 @@ if extract_hints:
             L_pos.append(l_pos)
             L_neg.append(l_neg)
 
-    print("")
+    # print("")
     L_pos = matrix(L_pos)
     L_neg = matrix(L_neg)
 
@@ -278,8 +278,9 @@ else:
 
 
 # Select the first 20 hints to use as hint DB
-V_20 = V[:20, :]
-L_20 = L[0, :20]
+
+V_20 = matrix(V.numpy()[0:20, :])
+L_20 = vec(L.numpy()[0, 0:20])
 
 dbdd_approx = lwe_instance.embed_into_DBDD()
 dbdd_ineq = lwe_instance.embed_into_DBDD()
@@ -288,6 +289,8 @@ beta_estimate_approx, _ = dbdd_approx.estimate_attack(silent=True, probabilistic
 beta_estimate_ineq, _ = dbdd_ineq.estimate_attack(silent=True, probabilistic=True)
 beta_approx, _ = dbdd_approx.attack()
 beta_ineq, _ = dbdd_ineq.attack()
+dbdd_approx.estimate_attack(silent=True)
+dbdd_ineq.estimate_attack(silent=True)
 print("Number of Hints, Type of Hints, Ellipsoid norm, Estimated Beta, Actual Beta")
 print(f"{0}, Approximate Hints, {dbdd_approx.ellip_norm() / dbdd_approx.dim()}, {beta_estimate_approx}, {beta_approx}")
 print(f"{0}, Inequality Hints, {dbdd_ineq.ellip_norm() / dbdd_ineq.dim()}, {beta_estimate_ineq}, {beta_ineq}")
@@ -298,16 +301,18 @@ for i in range(20):
     l = -L_20[0, i]
     dbdd_approx.integrate_approx_hint_fulldim((ell**2 / (l))*(v), covh)
     # v_ebdd, l_ebdd = dbdd_ineq.convert_hint_e_to_c(v, l)
-    v, l, max_ind = get_most_effective_hint(dbdd_ineq, -V_20, -L_20)
+    v_ineq, l_ineq, max_ind = get_most_effective_hint(dbdd_ineq, -V_20, -L_20)
     
-    if v is not None:
-        dbdd_ineq.integrate_ineq_hint(v, l)
+    if v_ineq is not None:
+        dbdd_ineq.integrate_ineq_hint(v_ineq, l_ineq)
     
 
     beta_estimate_approx, _ = dbdd_approx.estimate_attack(silent=True, probabilistic=True)
     beta_estimate_ineq, _ = dbdd_ineq.estimate_attack(silent=True, probabilistic=True)
     beta_approx, _ = dbdd_approx.attack()
     beta_ineq, _ = dbdd_ineq.attack()
+    dbdd_approx.estimate_attack(silent=True)
+    dbdd_ineq.estimate_attack(silent=True)
 
     print(f"{i+1}, Approximate Hints, {dbdd_approx.ellip_norm() / dbdd_approx.dim()}, {beta_estimate_approx}, {beta_approx}")
     print(f"{i+1}, Inequality Hints, {dbdd_ineq.ellip_norm() / dbdd_ineq.dim()}, {beta_estimate_ineq}, {beta_ineq}")
