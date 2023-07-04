@@ -41,9 +41,52 @@ class FrodoKEM(object):
         elif variant == "FrodoKEM-1344-SHAKE":
             self.setParamsFrodo1344()
             self.gen = self.genSHAKE128
+        elif variant == "FrodoKEM-80-AES":
+            self.setParamsFrodo80()
+            self.gen = self.genAES128
+        elif variant == "FrodoKEM-80-SHAKE":
+            self.setParamsFrodo80()
+            self.gen = self.genSHAKE128
         else:
             assert "Unknown variant"
         warnings.warn("WARNING: This Python3 implementation of FrodoKEM is not designed to be fast or secure, and may leak secret information via timing or other side channels; it should not be used in production environments.")
+
+    def setParamsFrodo80(self):
+        """Set the parameters for Frodo80 toy parameter set"""
+        # FrodoKEM specification, Table 3
+        self.error_distribution = (9288, 8720, 7216, 5264, 3384, 1918, 958, 422, 164, 56, 17, 4, 1)
+        self.T_chi = FrodoKEM.__cdf_zero_centred_symmetric(self.error_distribution)
+        # FrodoKEM specification, Table 4
+        self.D = 11
+        self.q = 2048
+        self.n = 80
+        self.nbar = 8
+        self.mbar = 8
+        self.B = 2
+        self.len_seedA = 128
+        self.len_z = 128
+        self.len_mu = 128
+        self.len_seedSE = 128
+        self.len_s = 128
+        self.len_k = 128
+        self.len_pkh = 128
+        self.len_ss = 128
+        self.len_chi = 16
+        self.len_seedA_bytes = int(self.len_seedA / 8)
+        self.len_z_bytes = int(self.len_z / 8)
+        self.len_mu_bytes = int(self.len_mu / 8)
+        self.len_seedSE_bytes = int(self.len_seedSE / 8)
+        self.len_s_bytes = int(self.len_s / 8)
+        self.len_k_bytes = int(self.len_k / 8)
+        self.len_pkh_bytes = int(self.len_pkh / 8)
+        self.len_ss_bytes = int(self.len_ss / 8)
+        self.len_chi_bytes = int(self.len_chi / 8)
+        self.shake = FrodoKEM.__shake128
+        # FrodoKEM specification, Table 5
+        self.len_sk_bytes = 2208
+        self.len_pk_bytes = 896
+        self.len_ct_bytes = 968
+        self.len_ss_bytes = 16
 
     def setParamsFrodo640(self):
         """Set the parameters for Frodo640"""

@@ -1,14 +1,14 @@
 
 from re import M
 
-
 load("../framework/proba_utils.sage")
 load("../framework/utils.sage")
 load("../framework/DBDD_predict_diag.sage")
 load("../framework/DBDD_predict.sage")
-load("../framework/DBDD.sage")
-load("../framework/EBDD.sage")
 load("../framework/DBDD_optimized.sage")
+load("../framework/DBDD.sage")
+load("../framework/EBDD_dec_fail.sage")
+load("../framework/EBDD.sage")
 load("../framework/ntru.sage")
 
 
@@ -79,7 +79,7 @@ class LWE_generic:
         """
         return self.embed_into_DBDD(dbdd_class=DBDD_predict_diag)
 
-    def embed_into_EBDD(self):
+    def embed_into_EBDD(self, ebdd_class=EBDD):
         """
         Factory method for creating an ellipsoidal DBDD instance from the underlying cryptographic instance.
         :n: (integer) size of the secret s
@@ -114,4 +114,11 @@ class LWE_generic:
         mu, S = kannan_ellipsoid(self.A, self.b, self.q, s_s=s_s, s_e=s_e, homogeneous=False)
         
         B = identity_matrix(self.n + self.m)
-        return EBDD(B, S, mu, self, u, verbosity=self.verbosity, ellip_scale=1)
+        return ebdd_class(B, S, mu, self, u, verbosity=self.verbosity, ellip_scale=1)
+
+    def embed_into_EBDD_dec_fail(self):
+        """
+        Factory method for creating an EBDD instance that is optimized for decryption failures.
+        Note: The resulting EBDD instance assumes the ellipsoid shape matrix is full-rank, so perfect hints aren't supported.
+        """
+        return self.embed_into_EBDD(ebdd_class=EBDD_dec_fail)
