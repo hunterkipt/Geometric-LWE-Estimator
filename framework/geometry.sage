@@ -573,7 +573,7 @@ def ellipsoid_hyperboloid_intersection(mu1, Sigma1, mu2, Sigma2, tolerance=1.48e
     
     # determines the maximum value of the parametrization for which the result will still be an ellipsoid
     lambda_min = min(e for e, _, _ in Sigma2.eigenvectors_left(Sigma1))
-    tau_max = min(1, 1 / (1 - lambda_min))
+    tau_max = min(1, 1 / (1 - lambda_min) - tolerance)
     
     def ellipsoid(tau):
         # calculates the parametrized intersection ellipsoid given the parameter tau
@@ -602,7 +602,7 @@ def ellipsoid_hyperboloid_intersection(mu1, Sigma1, mu2, Sigma2, tolerance=1.48e
     tau_min = res.x
     
     # calculates and returns the minimal parametrized ellipsoid
-    new_mu, new_Sigma  = ellipsoid(tau_min)
+    new_mu, new_Sigma = ellipsoid(tau_min)
     return round_matrix_to_rational(new_mu), round_matrix_to_rational(new_Sigma)
 
 def hyperplane_intersection(mu, Sigma, c, gamma, normalize=False):
