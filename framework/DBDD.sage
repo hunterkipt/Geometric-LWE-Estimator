@@ -416,8 +416,8 @@ class DBDD(DBDD_generic):
                                         estimate=False)
         print("Kannan shaping for LWE ellipsoid hints_real c completes.")
 
-    def ellip_norm(self):
-        if self.u is None:
+    def ellip_norm(self, u=self.u):
+        if u is None:
             raise InvalidArgument("Solution vector must exist to calculate norm")
         # DBDD_S = round_matrix_to_rational(self.S)
         try:
@@ -426,7 +426,7 @@ class DBDD(DBDD_generic):
         except AssertionError:
             inv = DBDD_S.inverse()
 
-        norm = scal(self.u * inv * self.u.T)
+        norm = scal(u * inv * u.T)
         return RR(norm)
 
     def attack(self, beta_max=None, beta_pre=None, randomize=False, tours=1):
