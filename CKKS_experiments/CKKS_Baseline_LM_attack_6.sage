@@ -593,7 +593,7 @@ for param in params:
             sum_ns1[i] += exp(Vol_1)
     Svol_avg_ns1 = ln(sum_ns1[0]/expr_num)
     Svol_avg_ns2 = ln(sum_ns2[0]/good)
-    print("Ave Vol_ns2--first method: ", Svol_avg_ns1)
+    print("Ave Vol_ns1: ", Svol_avg_ns1)
     print("Ave Vol_ns2: ", Svol_avg_ns2)
     print("Original Vol: ", -ln(matrix(Sigma_elps).det()))
     dvol_ns1 = ( (Svol_avg_ns1 + 4*ln(4)) * param["n"]/2 + 2*param["n"]*ln(param["n"]/2) ) / 2 + Bvol
