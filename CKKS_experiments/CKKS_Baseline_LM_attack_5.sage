@@ -209,7 +209,7 @@ for param in params:
     adv_queries = 1
     stat_security = 30
     #msg = 0
-    msg = 2*float(3.2**2 + 2/3) * (param["n"])/float(2)
+    msg = float(3.2**2 + 2/3) * (param["n"])/float(2)
     std_fresh = sqrt((4/3)*param["n"] + 1)*3.2
 
     
@@ -517,8 +517,6 @@ for param in params:
             mean_1, var_1, mean_2, var_2 = expected_ellipsoid_norm(Sigma_sqrt, matrix(np.zeros((4,1))), sqrt(param["n"]/2)*sigma_eps_1_mult, Q_re[i], mu_re[i], Q_im[i], mu_im[i], 4, gamma_re_ns1 - c_re[i], gamma_im_ns1 - c_im[i])
             Sigma_1_1 = np.linalg.pinv(var_1)/4
             Sigma_2_1 = np.linalg.pinv(var_2)/4
-            print("Norm based on real: ", (x[i] - mean_1).T@Sigma_1_1@(x[i] - mean_1))
-            print("Norm based on im: ", (x[i] - mean_2).T@Sigma_2_1@(x[i] - mean_2))
             noint_flag = empty_ellipsoid_hyperboloid_intersection(mu1 = matrix(mean_1), Sigma1 = matrix(Sigma_1_1), mu2 = matrix(mean_2), Sigma2 = matrix(Sigma_2_1), lb = 10^(-40))                
             if noint_flag == 0:
                 new_mu_ns1[i], new_Sigma_ns1[i] = ellipsoid_hyperboloid_intersection(mu1 = matrix(mean_1), Sigma1 = matrix(Sigma_1_1), mu2 = matrix(mean_2), Sigma2 = matrix(Sigma_2_1), lb = 10^(-40))
@@ -548,7 +546,13 @@ for param in params:
                 Vol_2 = ln(matrix(new_Sigma_ns2[i]).det())
                 ellnorm1 = (x[i] - new_mu_ns2[i]).T@new_Sigma_ns2[i]@(x[i] - new_mu_ns2[i])
             else:
-                Vol_2 = np.maximum(ln(matrix(Sigma_1_1).det()), ln(matrix(Sigma_2_1).det()))
+                if ln(matrix(Sigma_1_1).det()) > ln(matrix(Sigma_2_1).det()):
+                    ellnorm1 = (x[i]-mean_1).T@Sigma_1_1@(x[i]-mean_1)
+                    Vol_2 = ln(matrix(Sigma_1_1).det())
+                else:
+                    ellnorm1 = (x[i]-mean_2).T@Sigma_2_1@(x[i]-mean_2)
+                    Vol_2 = ln(matrix(Sigma_2_1).det())
+            print("Ellipsoid norm Int: ", ellnorm1)
             print("Original Norm: ", ellnorm)
             print("Vol Int: ", Vol_2)
             if Vol_2 <  -ln(matrix(Sigma_elps).det()):
