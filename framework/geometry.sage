@@ -7,6 +7,7 @@ from scipy.linalg import sqrtm
 from scipy.optimize import bisect, brenth, minimize_scalar
 import numpy as np
 import sys
+import random
 from fpylll import *
 from fpylll.algorithms.bkz2 import BKZReduction
 
@@ -564,14 +565,14 @@ def ellipsoid_intersection(mu1, Sigma1, mu2, Sigma2, tolerance=1.48e-08):
 
     return round_matrix_to_rational(new_mu), round_matrix_to_rational(new_Sigma)
 
-def ellipsoid_hyperboloid_intersection(mu1, Sigma1, mu2, Sigma2, tolerance=1.48e-08):
+def ellipsoid_hyperboloid_intersection(mu1, Sigma1, mu2, Sigma2, lb, tolerance=1.48e-08):
     """
     Ellipsoid/Hyperboloid intersection method from https://folk.ntnu.no/skoge/prost/proceedings/ifac2002/data/content/01090/1090.pdf
     Page 4. This function only works between two full rank quadratic forms of equal dimension, and assumes that Sigma1 is
     positive semi-definite.
     """
     
-    # determines the maximum value of the parametrization for which the result will still be an ellipsoid
+    # determines the maximum value of the parametrization for which the quadratic form will be PSD
     lambda_min = min(e for e, _, _ in Sigma2.eigenvectors_left(Sigma1))
     tau_max = min(1, 1 / (1 - lambda_min) - tolerance)
     
@@ -588,6 +589,8 @@ def ellipsoid_hyperboloid_intersection(mu1, Sigma1, mu2, Sigma2, tolerance=1.48e
         mu = Sigma_tau^-1 * c(Sigma1 * mu1, Sigma2 * mu2)
         
         v = scal(c(mu1.T * Sigma1 * mu1, mu2.T * Sigma2 * mu2) - mu.T * Sigma_tau * mu)
+        if (1-v) < lb:
+            v = 1-lb
         Sigma = (1 - v)^-1 * Sigma_tau
         
         return mu, Sigma
@@ -596,14 +599,58 @@ def ellipsoid_hyperboloid_intersection(mu1, Sigma1, mu2, Sigma2, tolerance=1.48e
         # calculates the determinant of the parametrized ellipsoid
         _, Sigma = ellipsoid(tau)
         return -ln(Sigma.det())
+
     
     # determines the value of tau which minimizes the determinant
-    res = minimize_scalar(determinant, bounds=(0, tau_max), method="bounded", options={'xatol': tolerance})
+    res = minimize_scalar(determinant, bounds=(0, max(0,tau_max)), method="bounded", options={'xatol': tolerance})
     tau_min = res.x
     
+    print("Tau min: %3.2f" %tau_min)
     # calculates and returns the minimal parametrized ellipsoid
     new_mu, new_Sigma = ellipsoid(tau_min)
     return round_matrix_to_rational(new_mu), round_matrix_to_rational(new_Sigma)
+
+
+
+def empty_ellipsoid_hyperboloid_intersection(mu1, Sigma1, mu2, Sigma2, lb, tolerance=1.48e-08):
+    """
+    Ellipsoid/Hyperboloid intersection method from https://folk.ntnu.no/skoge/prost/proceedings/ifac2002/data/content/01090/1090.pdf
+    Page 4. This function only works between two full rank quadratic forms of equal dimension, and assumes that Sigma1 is
+    positive semi-definite.
+    """
+    
+    # determines the maximum value of the parametrization for which the quadratic form will be PSD
+    lambda_min = min(e for e, _, _ in Sigma2.eigenvectors_left(Sigma1))
+    tau_max = min(1, 1 / (1 - lambda_min)-.001)
+    
+    def calculate_v(tau):
+        # calculates the parametrized intersection ellipsoid given the parameter tau
+        
+        def c(a, b):
+            # convex combination of two values based on the parameter
+            t = float(tau.real)
+            return (1 - t) * a + t * b
+        
+        # computes the v, 1-v values
+        Sigma_tau = c(Sigma1, Sigma2)
+        mu = Sigma_tau^-1 * c(Sigma1 * mu1, Sigma2 * mu2)
+        
+        v = scal(c(mu1.T * Sigma1 * mu1, mu2.T * Sigma2 * mu2) - mu.T * Sigma_tau * mu)
+        return 1-v
+    
+    
+    # determines the value of tau which minimizes the determinant
+    res = minimize_scalar(calculate_v, bounds=(0, max(0,tau_max)), method="bounded", options={'xatol': tolerance})
+    tau_min = res.x
+    
+    # calculates and returns the minimal parametrized ellipsoid
+    v_min = calculate_v(tau_min)
+    if v_min < 10^(-40):
+        return 1
+    else:
+        return 0
+
+    
 
 def hyperplane_intersection(mu, Sigma, c, gamma, normalize=False):
     """
