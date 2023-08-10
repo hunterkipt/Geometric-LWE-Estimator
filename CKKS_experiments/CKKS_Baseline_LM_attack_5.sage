@@ -209,14 +209,15 @@ for param in params:
     adv_queries = 1
     stat_security = 30
     #msg = 0
-    msg = float(3.2**2 + 2/3) * (param["n"])/float(2)
+    #msg = float(3.2**2 + 2/3) * (param["n"])/float(2)
+    msg = 5 * param["n"]
     std_fresh = sqrt((4/3)*param["n"] + 1)*3.2
 
     
     # Standard deviation of ciphertext error after 1 multiplication. Equivalent to \rho^2_{mult} from Ana's writeup.  
     #std_1_mult = sqrt((7*param["n"]**3)*(3.2**4)*((2/3)**2)*2**(-2*param["delta"]) + 2**(-2*param["delta"])*param["n"]*(std_fresh**4 + (1/12)*3.2*3.2) + (param["n"]/18) + (1/12))  
-    std_1_mult = sqrt((7*param["n"]**3)*(3.2**4)*((2/3)**2) + param["n"]*(std_fresh**4 + (1/12)*3.2*3.2) + (param["n"]/18) + (1/12) + 2 * msg**2*std_fresh**2)  
-    std_1_mult_2 = sqrt(param["n"]*(std_fresh**4 + (1/12)*3.2*3.2) + (param["n"]/18) + (1/12) + 2 * msg**2*std_fresh**2)  
+    std_1_mult = sqrt((7*param["n"]**3)*(3.2**4)*((2/3)**2) + param["n"]*(std_fresh**4 + (1/12)*3.2*3.2) + (param["n"]/18) + (1/12) + 2*msg**2*std_fresh**2)  
+    std_1_mult_2 = sqrt(param["n"]*(std_fresh**4 + (1/12)*3.2*3.2) + (param["n"]/18) + (1/12) + 2*msg**2*std_fresh**2)  
 
     # Measurement of fresh ciphertext error variance in bits
     bits_fresh = (1/2)*log(param["n"]*(std_fresh**2 + (1/12)))/log(2) + log(Hc(0.0001, param["n"]))/log(2)
@@ -609,11 +610,11 @@ for param in params:
     beta_t_hints_1_mult, delta_t_hints_1_mult = compute_beta_delta(
             (param["m"]+param["n"]+1), dvol_t_hints_1_mult, probabilistic=False, tours=1, verbose=0,
             ignore_lift_proba=False, number_targets=1, lift_union_bound=False)
-    print(f"BKZ Beta Estimate ({adv_queries} Hint, 1 Multiplication, statistical noise flooding(std=sigma_eps), msg = N*(s_s^2+s_e^2)): {beta_ns1: .2f} bikz ~ {beta_ns1*0.265: .2f} bits")
-    print(f"BKZ Beta Estimate ({adv_queries} Hint, 1 Multiplication, noise flooding in Ana's paper, msg = N*(s_s^2+s_e^2)): {beta_ns2: .2f} bikz ~ {beta_ns2*0.265: .2f} bits")
+    print(f"BKZ Beta Estimate ({adv_queries} Hint, 1 Multiplication, statistical noise flooding(std=sigma_eps), msg = 5*N: {beta_ns1: .2f} bikz ~ {beta_ns1*0.265: .2f} bits")
+    print(f"BKZ Beta Estimate ({adv_queries} Hint, 1 Multiplication, noise flooding in Ana's paper, msg = 5*N: {beta_ns2: .2f} bikz ~ {beta_ns2*0.265: .2f} bits")
     print(f"BKZ Beta Estimate ({adv_queries} Hint, statistical noise flooding): {beta_t_hints: .2f} bikz ~ {beta_t_hints*0.265: .2f} bits")
     print(f"BKZ Beta Estimate ({adv_queries} Hint, statistical noise flooding measured in bits): {beta_t_hints_bits: .2f} bikz ~ {beta_t_hints_bits*0.265 :.2f} bits")
     print(f"BKZ Beta Estimate ({adv_queries} Hint, noise flooding variance = rho_fresh): {beta_t_hints_fresh: .3f} bikz ~ {beta_t_hints_fresh*0.265: .2f} bits")
-    print(f"BKZ Beta Estimate ({adv_queries} Hint, 1 Multiplication: sigma_eps = ct_noise + squared terms), msg = N*(s_s^2+s_e^2): {beta_t_hints_1_mult: .3f} bikz ~ {beta_t_hints_1_mult*0.265: .2f} bits")
+    print(f"BKZ Beta Estimate ({adv_queries} Hint, 1 Multiplication: sigma_eps = ct_noise + squared terms), msg = 5*N: {beta_t_hints_1_mult: .3f} bikz ~ {beta_t_hints_1_mult*0.265: .2f} bits")
     print("")
 
