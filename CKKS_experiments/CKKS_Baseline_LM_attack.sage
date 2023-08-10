@@ -2,6 +2,11 @@ reset()
 
 load("../framework/LWE.sage")
 
+# Params Format
+# target: Bit security level
+# n, m: Dimensions of secret and error, respectively
+# logq: The logarithm of the q parameter in base-2
+# delta: The logarithm of the delta CKKS parameter in base-2
 params = [
     {"target": 128,
      "n": 1024,
@@ -118,6 +123,8 @@ def Hc(alpha, N):
         return sqrt(- (log(1 - (1 - alpha)**(2/N))/log(2)))
 
 # Calculate the denominator of the expectation of the volume resulting from integrating t hints.
+
+# <RUI>: This comes from the estimates you wrote in extension_to_t_hints.pdf
 def det_denom(s_s, s_e, s_eps, s_hs, s_he, n, t):
         outer_coeff = 4*ln(s_s) + 4*ln(s_e) + (4*t - 8)*ln(s_eps)
 
@@ -133,8 +140,10 @@ for param in params:
 
     # Calculate Volume of starting lattice and ellipsoid, use m*log(q) for bvol
     Bvol = param["m"] * (param["logq"]*ln(2))
-    Svol_orig = RR(param["n"]*log(2/3) + param["m"]*log(3.2*3.2))
 
+    # Svol is the volume of the ellipsoid defined by the secret distribution
+    # var(secret) = 2/3, variance(error)=3.2^2
+    Svol_orig = RR(param["n"]*log(2/3) + param["m"]*log(3.2*3.2))
     dvol_orig = Bvol - Svol_orig / 2
 
     # Calculate BKZ Beta, delta for starting lattice
@@ -148,16 +157,22 @@ for param in params:
     adv_queries = 1000 # adv_queries = t
     stat_security = 30
     std_fresh = sqrt((4/3)*param["n"] + 1)*3.2
-
+    
+    # Standard deviation of ciphertext error after 1 multiplication. Equivalent to \rho^2_{mult} from Ana's writeup.
     std_1_mult = sqrt((7*param["n"]**3)*(3.2**4)*((2/3)**2)*2**(-2*param["delta"]) + 2**(-2*param["delta"])*param["n"]*(std_fresh**4 + (1/12)*3.2*3.2) + (param["n"]/18) + (1/12))
     
 #     std_1_mult = sqrt((7*param["n"]**3)*(3.2**4)*((2/3)**2) + param["n"]*(std_fresh**4 + (1/12)*3.2*3.2) + (param["n"]/18) + (1/12))
+
+    # Measurement of fresh ciphertext error variance in bits
     bits_fresh = (1/2)*log(param["n"]*(std_fresh**2 + (1/12)))/log(2) + log(Hc(0.0001, param["n"]))/log(2)
 
-    # Calculate ciphertext noise estimate
+    # Calculate ciphertext noise estimates
+    # Statistically secure fresh ciphertext error variance
     sigma_eps = sqrt(12*adv_queries)*2**(stat_security / 2)*std_fresh
     sigma_eps_bits = sqrt(12*adv_queries)*2**(stat_security / 2)*sqrt(bits_fresh)
 
+    
+    # <RUI>: This comes from the writeup on the initial structure of the expected determinant (Dana's original writeup)
     num = 2*param["n"]*adv_queries*log(sigma_eps) + 2*param["n"]*(log(sqrt(2/3)) + log(3.2))
     denom = det_denom(sqrt(2/3), 3.2, sigma_eps, 3.2, sqrt(2/3), param["n"], adv_queries)
 
@@ -193,6 +208,23 @@ for param in params:
     dvol_t_hints_bits = Bvol - Svol_t_hints_bits / 2
     dvol_t_hints_fresh = Bvol - Svol_t_hints_fresh / 2
     dvol_t_hints_1_mult = Bvol - Svol_t_hints_1_mult / 2
+
+
+
+    # <RUI>: Insert your code here.
+    # TODO: Calculate variance/standard deviation of variables
+    # TODO: Use numpy.random.normal(mean, standard_deviation, (4,4)) to create a 4x4 random gaussian matrix for the quadratic form. Call matrix(<variable>) to convert it into a sage matrix.
+    # TODO: Ensure the scaling of the quadratic form equation makes the righthand side equal to 1 (from Dana's messages)
+    # TODO: Derive the 4x4 ellipsoid matrix for the canonical embedding of the secret/error block.
+    # TODO: Use ellipsoid_hyperboloid_intersection function (with the ellipsoid corresponding to the secret/error block as the first parameters) to calculate the intersected ellipsoid.
+    # TODO: Find the log determinant of the intersected ellipsoid according to Dana's instructions.
+    # TODO: Calculate dvol as above (Bvol - Svol/2)
+    # TODO: Put dvol into compute_beta_delta function as below
+    # TODO: Print out results
+    # TODO: repeat above for different noise flooding levels. Do once for statistically secure noise flooding, and once where the noise flooding variance = \rho^2_mult.
+
+
+
 
     # Calculate BKZ Beta, delta for lattice after t hints
     beta_t_hints, delta_t_hints = compute_beta_delta(
