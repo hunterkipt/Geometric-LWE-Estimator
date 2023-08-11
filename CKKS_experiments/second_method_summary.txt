@@ -1,0 +1,250 @@
+Parameter set: n = 1024, target 128-bit security
+log(q) = 25, log(Delta) = 13
+==========================================
+BKZ Beta Estimate (Initial):  386.21 bikz ~  102.34 bits
+Ave Vol_ns1:  [-34.29992545]
+Ave Vol_ns2:  [-33.21934152]
+Original Vol:  -34.34014896764399
+BKZ Beta Estimate (1 Hint, 1 Multiplication, statistical noise flooding(std=sigma_eps), msg = 5*N:  385.89 bikz ~  102.26 bits
+BKZ Beta Estimate (1 Hint, 1 Multiplication, noise flooding in Ana's paper, msg = 5*N:  377.67 bikz ~  100.08 bits
+BKZ Beta Estimate (1 Hint, statistical noise flooding):  386.21 bikz ~  102.34 bits
+BKZ Beta Estimate (1 Hint, statistical noise flooding measured in bits):  386.21 bikz ~ 102.34 bits
+BKZ Beta Estimate (1 Hint, noise flooding variance = rho_fresh):  374.820 bikz ~  99.33 bits
+BKZ Beta Estimate (1 Hint, 1 Multiplication: sigma_eps = ct_noise + squared terms), msg = 5*N:  378.458 bikz ~  100.29 bits
+
+Parameter set: n = 1024, target 192-bit security
+log(q) = 17, log(Delta) = 9
+==========================================
+BKZ Beta Estimate (Initial):  641.65 bikz ~  170.04 bits
+Ave Vol_ns1:  [-34.30085499]
+Ave Vol_ns2:  [-32.71168444]
+Original Vol:  -34.34014896764399
+BKZ Beta Estimate (1 Hint, 1 Multiplication, statistical noise flooding(std=sigma_eps), msg = 5*N:  640.99 bikz ~  169.86 bits
+BKZ Beta Estimate (1 Hint, 1 Multiplication, noise flooding in Ana's paper, msg = 5*N:  614.96 bikz ~  162.97 bits
+BKZ Beta Estimate (1 Hint, statistical noise flooding):  641.65 bikz ~  170.04 bits
+BKZ Beta Estimate (1 Hint, statistical noise flooding measured in bits):  641.65 bikz ~ 170.04 bits
+BKZ Beta Estimate (1 Hint, noise flooding variance = rho_fresh):  616.955 bikz ~  163.49 bits
+BKZ Beta Estimate (1 Hint, 1 Multiplication: sigma_eps = ct_noise + squared terms), msg = 5*N:  624.803 bikz ~  165.57 bits
+
+Parameter set: n = 1024, target 256-bit security
+log(q) = 13, log(Delta) = 7
+==========================================
+BKZ Beta Estimate (Initial):  884.13 bikz ~  234.29 bitsAve Vol_ns1:  [-34.30273356]
+Ave Vol_ns2:  [-33.16786437]
+Original Vol:  -34.34014896764399
+BKZ Beta Estimate (1 Hint, 1 Multiplication, statistical noise flooding(std=sigma_eps), msg = 5*N:  883.08 bikz ~  234.02 bits
+BKZ Beta Estimate (1 Hint, 1 Multiplication, noise flooding in Ana's paper, msg = 5*N:  852.16 bikz ~  225.82 bits
+BKZ Beta Estimate (1 Hint, statistical noise flooding):  884.13 bikz ~  234.29 bits
+BKZ Beta Estimate (1 Hint, statistical noise flooding measured in bits):  884.13 bikz ~ 234.29 bits
+BKZ Beta Estimate (1 Hint, noise flooding variance = rho_fresh):  843.459 bikz ~  223.52 bits
+BKZ Beta Estimate (1 Hint, 1 Multiplication: sigma_eps = ct_noise + squared terms), msg = 5*N:  856.325 bikz ~  226.93 bits
+
+Parameter set: n = 2048, target 128-bit security
+log(q) = 51, log(Delta) = 26
+==========================================
+BKZ Beta Estimate (Initial):  365.43 bikz ~  96.84 bits
+Ave Vol_ns1:  [-37.07651455]
+Ave Vol_ns2:  [-34.83292711]
+Original Vol:  -37.11273768988377
+BKZ Beta Estimate (1 Hint, 1 Multiplication, statistical noise flooding(std=sigma_eps), msg = 5*N:  365.29 bikz ~  96.80 bits
+BKZ Beta Estimate (1 Hint, 1 Multiplication, noise flooding in Ana's paper, msg = 5*N:  357.13 bikz ~  94.64 bits
+BKZ Beta Estimate (1 Hint, statistical noise flooding):  365.43 bikz ~  96.84 bits
+BKZ Beta Estimate (1 Hint, statistical noise flooding measured in bits):  365.43 bikz ~ 96.84 bits
+BKZ Beta Estimate (1 Hint, noise flooding variance = rho_fresh):  359.921 bikz ~  95.38 bits
+BKZ Beta Estimate (1 Hint, 1 Multiplication: sigma_eps = ct_noise + squared terms), msg = 5*N:  361.747 bikz ~  95.86 bits
+
+Parameter set: n = 2048, target 192-bit security
+log(q) = 35, log(Delta) = 18
+==========================================
+BKZ Beta Estimate (Initial):  612.49 bikz ~  162.31 bits
+Ave Vol_ns1:  [-37.07936932]
+Ave Vol_ns2:  [-35.97579441]
+Original Vol:  -37.11273768988377
+BKZ Beta Estimate (1 Hint, 1 Multiplication, statistical noise flooding(std=sigma_eps), msg = 5*N:  612.22 bikz ~  162.24 bits
+BKZ Beta Estimate (1 Hint, 1 Multiplication, noise flooding in Ana's paper, msg = 5*N:  603.18 bikz ~  159.84 bits
+BKZ Beta Estimate (1 Hint, statistical noise flooding):  612.49 bikz ~  162.31 bits
+BKZ Beta Estimate (1 Hint, statistical noise flooding measured in bits):  612.49 bikz ~ 162.31 bits
+BKZ Beta Estimate (1 Hint, noise flooding variance = rho_fresh):  600.218 bikz ~  159.06 bits
+BKZ Beta Estimate (1 Hint, 1 Multiplication: sigma_eps = ct_noise + squared terms), msg = 5*N:  604.275 bikz ~  160.13 bits
+
+Parameter set: n = 2048, target 256-bit security
+log(q) = 27, log(Delta) = 14
+==========================================
+BKZ Beta Estimate (Initial):  853.25 bikz ~  226.11 bits
+Ave Vol_ns1:  [-37.07698585]
+Ave Vol_ns2:  [-35.7423272]
+Original Vol:  -37.11273768988377
+BKZ Beta Estimate (1 Hint, 1 Multiplication, statistical noise flooding(std=sigma_eps), msg = 5*N:  852.74 bikz ~  225.98 bits
+BKZ Beta Estimate (1 Hint, 1 Multiplication, noise flooding in Ana's paper, msg = 5*N:  834.22 bikz ~  221.07 bits
+BKZ Beta Estimate (1 Hint, statistical noise flooding):  853.25 bikz ~  226.11 bits
+BKZ Beta Estimate (1 Hint, statistical noise flooding measured in bits):  853.25 bikz ~ 226.11 bits
+BKZ Beta Estimate (1 Hint, noise flooding variance = rho_fresh):  832.405 bikz ~  220.59 bits
+BKZ Beta Estimate (1 Hint, 1 Multiplication: sigma_eps = ct_noise + squared terms), msg = 5*N:  839.274 bikz ~  222.41 bits
+
+Parameter set: n = 4096, target 128-bit security
+log(q) = 101, log(Delta) = 40
+==========================================
+BKZ Beta Estimate (Initial):  365.34 bikz ~  96.81 bits
+Ave Vol_ns1:  [-39.8529039]
+Ave Vol_ns2:  [-38.76279669]
+Original Vol:  -39.885326412123554
+BKZ Beta Estimate (1 Hint, 1 Multiplication, statistical noise flooding(std=sigma_eps), msg = 5*N:  365.28 bikz ~  96.80 bits
+BKZ Beta Estimate (1 Hint, 1 Multiplication, noise flooding in Ana's paper, msg = 5*N:  363.23 bikz ~  96.26 bits
+BKZ Beta Estimate (1 Hint, statistical noise flooding):  365.34 bikz ~  96.81 bits
+BKZ Beta Estimate (1 Hint, statistical noise flooding measured in bits):  365.34 bikz ~ 96.81 bits
+BKZ Beta Estimate (1 Hint, noise flooding variance = rho_fresh):  362.516 bikz ~  96.07 bits
+BKZ Beta Estimate (1 Hint, 1 Multiplication: sigma_eps = ct_noise + squared terms), msg = 5*N:  363.474 bikz ~  96.32 bits
+
+Parameter set: n = 4096, target 192-bit security
+log(q) = 70, log(Delta) = 36
+==========================================
+BKZ Beta Estimate (Initial):  609.11 bikz ~  161.41 bits
+Ave Vol_ns1:  [-39.85011153]
+Ave Vol_ns2:  [-38.64384055]
+Original Vol:  -39.885326412123554
+BKZ Beta Estimate (1 Hint, 1 Multiplication, statistical noise flooding(std=sigma_eps), msg = 5*N:  608.96 bikz ~  161.37 bits
+BKZ Beta Estimate (1 Hint, 1 Multiplication, noise flooding in Ana's paper, msg = 5*N:  603.90 bikz ~  160.03 bits
+BKZ Beta Estimate (1 Hint, statistical noise flooding):  609.11 bikz ~  161.41 bits
+BKZ Beta Estimate (1 Hint, statistical noise flooding measured in bits):  609.11 bikz ~ 161.41 bits
+BKZ Beta Estimate (1 Hint, noise flooding variance = rho_fresh):  602.809 bikz ~  159.74 bits
+BKZ Beta Estimate (1 Hint, 1 Multiplication: sigma_eps = ct_noise + squared terms), msg = 5*N:  604.943 bikz ~  160.31 bits
+
+Parameter set: n = 4096, target 256-bit security
+log(q) = 54, log(Delta) = 28
+==========================================
+BKZ Beta Estimate (Initial):  856.98 bikz ~  227.10 bits
+Ave Vol_ns1:  [-39.84712844]
+Ave Vol_ns2:  [-37.08712731]
+Original Vol:  -39.885326412123554
+BKZ Beta Estimate (1 Hint, 1 Multiplication, statistical noise flooding(std=sigma_eps), msg = 5*N:  856.70 bikz ~  227.02 bits
+BKZ Beta Estimate (1 Hint, 1 Multiplication, noise flooding in Ana's paper, msg = 5*N:  836.78 bikz ~  221.75 bits
+BKZ Beta Estimate (1 Hint, statistical noise flooding):  856.98 bikz ~  227.10 bits
+BKZ Beta Estimate (1 Hint, statistical noise flooding measured in bits):  856.98 bikz ~ 227.10 bits
+BKZ Beta Estimate (1 Hint, noise flooding variance = rho_fresh):  846.023 bikz ~  224.20 bits
+BKZ Beta Estimate (1 Hint, 1 Multiplication: sigma_eps = ct_noise + squared terms), msg = 5*N:  849.730 bikz ~  225.18 bits
+
+Parameter set: n = 8192, target 128-bit security
+log(q) = 202, log(Delta) = 40
+==========================================
+BKZ Beta Estimate (Initial):  362.66 bikz ~  96.11 bits
+Ave Vol_ns1:  [-42.61946425]
+Ave Vol_ns2:  [-41.19997886]
+Original Vol:  -42.657915134363336
+BKZ Beta Estimate (1 Hint, 1 Multiplication, statistical noise flooding(std=sigma_eps), msg = 5*N:  362.63 bikz ~  96.10 bits
+BKZ Beta Estimate (1 Hint, 1 Multiplication, noise flooding in Ana's paper, msg = 5*N:  361.29 bikz ~  95.74 bits
+BKZ Beta Estimate (1 Hint, statistical noise flooding):  362.66 bikz ~  96.11 bits
+BKZ Beta Estimate (1 Hint, statistical noise flooding measured in bits):  362.66 bikz ~ 96.11 bits
+BKZ Beta Estimate (1 Hint, noise flooding variance = rho_fresh):  361.249 bikz ~  95.73 bits
+BKZ Beta Estimate (1 Hint, 1 Multiplication: sigma_eps = ct_noise + squared terms), msg = 5*N:  361.737 bikz ~  95.86 bits
+
+Parameter set: n = 8192, target 192-bit security
+log(q) = 141, log(Delta) = 40
+==========================================
+BKZ Beta Estimate (Initial):  601.49 bikz ~  159.40 bits
+Ave Vol_ns1:  [-42.62258892]
+Ave Vol_ns2:  [-38.63549665]
+Original Vol:  -42.657915134363336
+BKZ Beta Estimate (1 Hint, 1 Multiplication, statistical noise flooding(std=sigma_eps), msg = 5*N:  601.42 bikz ~  159.38 bits
+BKZ Beta Estimate (1 Hint, 1 Multiplication, noise flooding in Ana's paper, msg = 5*N:  593.15 bikz ~  157.18 bits
+BKZ Beta Estimate (1 Hint, statistical noise flooding):  601.49 bikz ~  159.40 bits
+BKZ Beta Estimate (1 Hint, statistical noise flooding measured in bits):  601.49 bikz ~ 159.40 bits
+BKZ Beta Estimate (1 Hint, noise flooding variance = rho_fresh):  598.351 bikz ~  158.56 bits
+BKZ Beta Estimate (1 Hint, 1 Multiplication: sigma_eps = ct_noise + squared terms), msg = 5*N:  599.433 bikz ~  158.85 bits
+
+Parameter set: n = 8192, target 256-bit security
+log(q) = 109, log(Delta) = 40
+==========================================
+BKZ Beta Estimate (Initial):  848.63 bikz ~  224.89 bits
+Ave Vol_ns1:  [-42.61775468]
+Ave Vol_ns2:  [-41.05349296]
+Original Vol:  -42.657915134363336
+BKZ Beta Estimate (1 Hint, 1 Multiplication, statistical noise flooding(std=sigma_eps), msg = 5*N:  848.48 bikz ~  224.85 bits
+BKZ Beta Estimate (1 Hint, 1 Multiplication, noise flooding in Ana's paper, msg = 5*N:  842.75 bikz ~  223.33 bits
+BKZ Beta Estimate (1 Hint, statistical noise flooding):  848.63 bikz ~  224.89 bits
+BKZ Beta Estimate (1 Hint, statistical noise flooding measured in bits):  848.63 bikz ~ 224.89 bits
+BKZ Beta Estimate (1 Hint, noise flooding variance = rho_fresh):  843.119 bikz ~  223.43 bits
+BKZ Beta Estimate (1 Hint, 1 Multiplication: sigma_eps = ct_noise + squared terms), msg = 5*N:  845.016 bikz ~  223.93 bits
+
+Parameter set: n = 16384, target 128-bit security
+log(q) = 411, log(Delta) = 40
+==========================================
+BKZ Beta Estimate (Initial):  352.34 bikz ~  93.37 bits
+Ave Vol_ns1:  [-45.39250572]
+Ave Vol_ns2:  [-44.34429336]
+Original Vol:  -45.43050385660311
+BKZ Beta Estimate (1 Hint, 1 Multiplication, statistical noise flooding(std=sigma_eps), msg = 5*N:  352.33 bikz ~  93.37 bits
+BKZ Beta Estimate (1 Hint, 1 Multiplication, noise flooding in Ana's paper, msg = 5*N:  351.85 bikz ~  93.24 bits
+BKZ Beta Estimate (1 Hint, statistical noise flooding):  352.34 bikz ~  93.37 bits
+BKZ Beta Estimate (1 Hint, statistical noise flooding measured in bits):  352.34 bikz ~ 93.37 bits
+BKZ Beta Estimate (1 Hint, noise flooding variance = rho_fresh):  351.663 bikz ~  93.19 bits
+BKZ Beta Estimate (1 Hint, 1 Multiplication: sigma_eps = ct_noise + squared terms), msg = 5*N:  351.900 bikz ~  93.25 bits
+
+Parameter set: n = 16384, target 192-bit security
+log(q) = 284, log(Delta) = 40
+==========================================
+BKZ Beta Estimate (Initial):  594.78 bikz ~  157.62 bits
+Ave Vol_ns1:  [-45.39270757]
+Ave Vol_ns2:  [-44.25336518]
+Original Vol:  -45.43050385660311
+BKZ Beta Estimate (1 Hint, 1 Multiplication, statistical noise flooding(std=sigma_eps), msg = 5*N:  594.74 bikz ~  157.61 bits
+BKZ Beta Estimate (1 Hint, 1 Multiplication, noise flooding in Ana's paper, msg = 5*N:  593.56 bikz ~  157.29 bits
+BKZ Beta Estimate (1 Hint, statistical noise flooding):  594.78 bikz ~  157.62 bits
+BKZ Beta Estimate (1 Hint, statistical noise flooding measured in bits):  594.78 bikz ~ 157.62 bits
+BKZ Beta Estimate (1 Hint, noise flooding variance = rho_fresh):  593.221 bikz ~  157.20 bits
+BKZ Beta Estimate (1 Hint, 1 Multiplication: sigma_eps = ct_noise + squared terms), msg = 5*N:  593.763 bikz ~  157.35 bits
+
+Parameter set: n = 16384, target 256-bit security
+log(q) = 220, log(Delta) = 40
+==========================================
+BKZ Beta Estimate (Initial):  839.32 bikz ~  222.42 bits
+Ave Vol_ns1:  [-45.39486001]
+Ave Vol_ns2:  [-43.98378529]
+Original Vol:  -45.43050385660311
+BKZ Beta Estimate (1 Hint, 1 Multiplication, statistical noise flooding(std=sigma_eps), msg = 5*N:  839.25 bikz ~  222.40 bits
+BKZ Beta Estimate (1 Hint, 1 Multiplication, noise flooding in Ana's paper, msg = 5*N:  836.68 bikz ~  221.72 bits
+BKZ Beta Estimate (1 Hint, statistical noise flooding):  839.32 bikz ~  222.42 bits
+BKZ Beta Estimate (1 Hint, statistical noise flooding measured in bits):  839.32 bikz ~ 222.42 bits
+BKZ Beta Estimate (1 Hint, noise flooding variance = rho_fresh):  836.579 bikz ~  221.69 bits
+BKZ Beta Estimate (1 Hint, 1 Multiplication: sigma_eps = ct_noise + squared terms), msg = 5*N:  837.532 bikz ~  221.95 bits
+
+Parameter set: n = 32768, target 128-bit security
+log(q) = 827, log(Delta) = 40
+==========================================
+BKZ Beta Estimate (Initial):  348.55 bikz ~  92.37 bits
+Ave Vol_ns1:  [-48.16944889]
+Ave Vol_ns2:  [-46.88735743]
+Original Vol:  -48.20309257884289
+BKZ Beta Estimate (1 Hint, 1 Multiplication, statistical noise flooding(std=sigma_eps), msg = 5*N:  348.54 bikz ~  92.36 bits
+BKZ Beta Estimate (1 Hint, 1 Multiplication, noise flooding in Ana's paper, msg = 5*N:  348.26 bikz ~  92.29 bits
+BKZ Beta Estimate (1 Hint, statistical noise flooding):  348.55 bikz ~  92.37 bits
+BKZ Beta Estimate (1 Hint, statistical noise flooding measured in bits):  348.55 bikz ~ 92.37 bits
+BKZ Beta Estimate (1 Hint, noise flooding variance = rho_fresh):  348.215 bikz ~  92.28 bits
+BKZ Beta Estimate (1 Hint, 1 Multiplication: sigma_eps = ct_noise + squared terms), msg = 5*N:  348.333 bikz ~  92.31 bits
+
+Parameter set: n = 32768, target 192-bit security
+log(q) = 571, log(Delta) = 40
+==========================================
+BKZ Beta Estimate (Initial):  590.00 bikz ~  156.35 bits
+Ave Vol_ns1:  [-48.15849831]
+Ave Vol_ns2:  [-43.03291984]
+Original Vol:  -48.20309257884289
+BKZ Beta Estimate (1 Hint, 1 Multiplication, statistical noise flooding(std=sigma_eps), msg = 5*N:  589.98 bikz ~  156.35 bits
+BKZ Beta Estimate (1 Hint, 1 Multiplication, noise flooding in Ana's paper, msg = 5*N:  587.36 bikz ~  155.65 bits
+BKZ Beta Estimate (1 Hint, statistical noise flooding):  590.00 bikz ~  156.35 bits
+BKZ Beta Estimate (1 Hint, statistical noise flooding measured in bits):  590.00 bikz ~ 156.35 bits
+BKZ Beta Estimate (1 Hint, noise flooding variance = rho_fresh):  589.233 bikz ~  156.15 bits
+BKZ Beta Estimate (1 Hint, 1 Multiplication: sigma_eps = ct_noise + squared terms), msg = 5*N:  589.504 bikz ~  156.22 bits
+
+Parameter set: n = 32768, target 256-bit security
+log(q) = 443, log(Delta) = 40
+==========================================
+BKZ Beta Estimate (Initial):  832.15 bikz ~  220.52 bits
+Ave Vol_ns1:  [-48.16702089]
+Ave Vol_ns2:  [-46.82863903]
+Original Vol:  -48.20309257884289
+BKZ Beta Estimate (1 Hint, 1 Multiplication, statistical noise flooding(std=sigma_eps), msg = 5*N:  832.12 bikz ~  220.51 bits
+BKZ Beta Estimate (1 Hint, 1 Multiplication, noise flooding in Ana's paper, msg = 5*N:  830.91 bikz ~  220.19 bits
+BKZ Beta Estimate (1 Hint, statistical noise flooding):  832.15 bikz ~  220.52 bits
+BKZ Beta Estimate (1 Hint, statistical noise flooding measured in bits):  832.15 bikz ~ 220.52 bits
+BKZ Beta Estimate (1 Hint, noise flooding variance = rho_fresh):  830.794 bikz ~  220.16 bits
+BKZ Beta Estimate (1 Hint, 1 Multiplication: sigma_eps = ct_noise + squared terms), msg = 5*N:  831.270 bikz ~  220.29 bits

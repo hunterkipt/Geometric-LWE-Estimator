@@ -1,4 +1,5 @@
 load("../framework/LWE.sage")
+load("../framework/LWE.sage")
 
 from scipy.io import loadmat
 import random

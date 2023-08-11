@@ -1,0 +1,27 @@
+def quick_hyperplane_int(Sigma, mu, v, l, dim):
+
+    num = scal(v * mu.T) - l
+    denom = scal(v * Sigma * v.T)
+    norm = sqrt(scal(v * Sigma * v.T))
+        
+    alpha = num / norm
+
+    print(f"Alpha:{alpha}")
+    if alpha < -1 or alpha > 1:
+        print("Redundant hint! Cut outside ellipsoid!")
+        return Sigma, mu
+
+    if alpha*(-alpha) > 1 /dim:
+        return Sigma, mu
+
+    b = (1 / norm) * v * Sigma.T
+
+    # coeff2 = (dim_) / (dim_ - 1) * (1 - num*num/denom)
+    coeff2 = (1 - num*num/denom)
+
+    # self.D = lattice_orthogonal_section(self.D, v_c)
+        #self.expected_length -= 1
+    mu -= num/denom * v * Sigma.T
+    Sigma -= (Sigma * v.T * v * Sigma)/denom
+    Sigma *= coeff2
+    return Sigma, mu

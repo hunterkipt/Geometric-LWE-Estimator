@@ -574,8 +574,8 @@ def ellipsoid_hyperboloid_intersection(mu1, Sigma1, mu2, Sigma2, lb, tolerance=1
     
     # determines the maximum value of the parametrization for which the quadratic form will be PSD
     lambda_min = min(e for e, _, _ in Sigma2.eigenvectors_left(Sigma1))
-    tau_max = min(1, 1 / (1 - lambda_min)-.001)
-    #tau_max = 1
+    #tau_max = min(1, 1 / (1 - lambda_min)-.001)
+    tau_max = 1
     
     def ellipsoid(tau):
         # calculates the parametrized intersection ellipsoid given the parameter tau
