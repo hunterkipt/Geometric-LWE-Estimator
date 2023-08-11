@@ -534,7 +534,7 @@ for param in params:
             #print("Expected Ellipsoid Norm: ", expected_ellipsoid_norm(Sigma_sqrt, matrix(np.zeros((4,1))), sqrt(param["n"]/2)*std_1_mult, Q_re[i], mu_re[i], 4, gamma_re_ns2 - c_re[i]))
             new_ellipsoid = ellipsoid_hyperboloid_intersection(mu1 = matrix(np.zeros((4,1))), Sigma1 = matrix(Sigma_elps_inv), mu2 = matrix(mu_re[i]), Sigma2 = matrix(Sigma_re_ns2[i]), tolerance = 10^(-40))
             if new_ellipsoid:
-                new_mu_ns2[i], new_Sigma_ns2[i] = ellipsoid
+                new_mu_ns2[i], new_Sigma_ns2[i] = new_ellipsoid
             else:
                 print("!!!!!!!!!!!!!!")
                 new_mu_ns2[i] = matrix(np.zeros((4,1)))
@@ -552,15 +552,15 @@ for param in params:
             print("Ellipsoid norm Im: ", (x[i]-mu_im[i]).T@Sigma_im_ns2[i]@(x[i]-mu_im[i]))
             new_ellipsoid = ellipsoid_hyperboloid_intersection(mu1 = matrix(np.zeros((4,1))), Sigma1 = matrix(Sigma_elps_inv), mu2 = matrix(mu_im[i]), Sigma2 = matrix(Sigma_im_ns2[i]), tolerance = 10^(-40))
             if new_ellipsoid:
-                new_mu_ns2[i], new_Sigma_ns2[i] = ellipsoid
+                new_mu_ns2[i], new_Sigma_ns2[i] = new_ellipsoid
             else:
                 print("!!!!!!!!!!!!!!")
                 new_mu_ns2[i] = matrix(np.zeros((4,1)))
                 new_Sigma_ns2[i] = matrix(Sigma_elps_inv)
-            ellipsoid = ellipsoid_hyperboloid_intersection(mu1 = matrix(new_mu_ns2[i]), Sigma1 = matrix(new_Sigma_ns2[i]), mu2 = matrix(mu_re[i]), Sigma2 = matrix(Sigma_re_ns2[i]), tolerance = 10^(-40))
-            if ellipsoid:
-                new_mu_ns2[i], new_Sigma_ns2[i] = ellipsoid
-            else::
+            new_ellipsoid = ellipsoid_hyperboloid_intersection(mu1 = matrix(new_mu_ns2[i]), Sigma1 = matrix(new_Sigma_ns2[i]), mu2 = matrix(mu_re[i]), Sigma2 = matrix(Sigma_re_ns2[i]), tolerance = 10^(-40))
+            if new_ellipsoid:
+                new_mu_ns2[i], new_Sigma_ns2[i] = new_ellipsoid
+            else:
                 print("!!!!!!!!!!!!!!")
             ellnorm2 = (x[i]-new_mu_ns2[i]).T@new_Sigma_ns2[i]@(x[i]-new_mu_ns2[i])
             Vol_im_re = ln(matrix(new_Sigma_ns2[i]).det())

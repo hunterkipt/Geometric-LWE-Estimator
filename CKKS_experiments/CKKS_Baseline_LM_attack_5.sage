@@ -518,9 +518,9 @@ for param in params:
             mean_1, var_1, mean_2, var_2 = expected_ellipsoid_norm(Sigma_sqrt, matrix(np.zeros((4,1))), sqrt(param["n"]/2)*sigma_eps_1_mult, Q_re[i], mu_re[i], Q_im[i], mu_im[i], 4, gamma_re_ns1 - c_re[i], gamma_im_ns1 - c_im[i])
             Sigma_1_1 = np.linalg.pinv(var_1)/4
             Sigma_2_1 = np.linalg.pinv(var_2)/4
-            ellipsoid = ellipsoid_hyperboloid_intersection(mu1 = matrix(mean_1), Sigma1 = matrix(Sigma_1_1), mu2 = matrix(mean_2), Sigma2 = matrix(Sigma_2_1), tolerance = 10^(-40))
-            if ellipsoid:
-                new_mu_ns1[i], new_Sigma_ns1[i] = ellipsoid
+            new_ellipsoid = ellipsoid_hyperboloid_intersection(mu1 = matrix(mean_1), Sigma1 = matrix(Sigma_1_1), mu2 = matrix(mean_2), Sigma2 = matrix(Sigma_2_1), tolerance = 10^(-40))
+            if new_ellipsoid:
+                new_mu_ns1[i], new_Sigma_ns1[i] = new_ellipsoid
                 Vol_1 = ln(matrix(new_Sigma_ns1[i]).det())
             else:
                 Vol_1 = np.maximum(ln(matrix(Sigma_1_1).det()), ln(matrix(Sigma_2_1).det()))
@@ -539,9 +539,9 @@ for param in params:
             print("Initial volume 1: ", ln(matrix(Sigma_1_1).det()))
             print("Initial volume 2: ", ln(matrix(Sigma_2_1).det()))
             ellnorm1 = 0
-            ellipsoid = ellipsoid_hyperboloid_intersection(mu1 = matrix(mean_1), Sigma1 = matrix(Sigma_1_1), mu2 = matrix(mean_2), Sigma2 = matrix(Sigma_2_1), tolerance = 10^(-40))
-            if ellipsoid:
-                new_mu_ns2[i], new_Sigma_ns2[i] = ellipsoid
+            new_ellipsoid = ellipsoid_hyperboloid_intersection(mu1 = matrix(mean_1), Sigma1 = matrix(Sigma_1_1), mu2 = matrix(mean_2), Sigma2 = matrix(Sigma_2_1), tolerance = 10^(-40))
+            if new_ellipsoid:
+                new_mu_ns2[i], new_Sigma_ns2[i] = new_ellipsoid
                 Vol_2 = ln(matrix(new_Sigma_ns2[i]).det())
                 ellnorm1 = (x[i] - new_mu_ns2[i]).T@new_Sigma_ns2[i]@(x[i] - new_mu_ns2[i])
             else:

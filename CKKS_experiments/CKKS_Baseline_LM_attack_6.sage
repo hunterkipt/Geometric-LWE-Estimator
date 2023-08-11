@@ -512,23 +512,23 @@ for param in params:
             Sigma_re_ns1[i] = Q_re[i]/mean_1
             Sigma_im_ns1[i] = Q_im[i]/mean_2
             
-            ellipsoid = ellipsoid_hyperboloid_intersection(mu1 = matrix(np.zeros((4,1))), Sigma1 = matrix(Sigma_elps_inv), mu2 = matrix(mu_re[i]), Sigma2 = matrix(Sigma_re_ns1[i]), tolerance = 10^(-40))
-            if ellipsoid:
-                new_mu_ns1[i], new_Sigma_ns1[i] = ellipsoid
+            new_ellipsoid = ellipsoid_hyperboloid_intersection(mu1 = matrix(np.zeros((4,1))), Sigma1 = matrix(Sigma_elps_inv), mu2 = matrix(mu_re[i]), Sigma2 = matrix(Sigma_re_ns1[i]), tolerance = 10^(-40))
+            if new_ellipsoid:
+                new_mu_ns1[i], new_Sigma_ns1[i] = new_ellipsoid
             else:
                 new_mu_ns1[i] = matrix(np.zeros((4,1)))
                 new_Sigma_ns1[i] = matrix(Sigma_elps_inv)
             
-            ellipsoid = ellipsoid_hyperboloid_intersection(mu1 = matrix(np.zeros((4,1))), Sigma1 = matrix(Sigma_elps_inv), mu2 = matrix(mu_im[i]), Sigma2 = matrix(Sigma_im_ns1[i]), tolerance = 10^(-40))
-            if ellipsoid:
-                new_mu_ns1_2[i], new_Sigma_ns1_2[i] = ellipsoid
+            new_ellipsoid = ellipsoid_hyperboloid_intersection(mu1 = matrix(np.zeros((4,1))), Sigma1 = matrix(Sigma_elps_inv), mu2 = matrix(mu_im[i]), Sigma2 = matrix(Sigma_im_ns1[i]), tolerance = 10^(-40))
+            if new_ellipsoid:
+                new_mu_ns1_2[i], new_Sigma_ns1_2[i] = new_ellipsoid
             else:
                 new_mu_ns1_2[i] = matrix(np.zeros((4,1)))
                 new_Sigma_ns2_2[i] = matrix(Sigma_elps_inv)
 
-            ellipsoid = ellipsoid_hyperboloid_intersection(mu1 = matrix(new_mu_ns1[i]), Sigma1 = matrix(new_Sigma_ns1[i]), mu2 = matrix(new_mu_ns1_2[i]), Sigma2 = matrix(new_Sigma_ns1_2[i]), tolerance = 10^(-40))
-            if ellipsoid:
-                new_mu_ns1[i], new_Sigma_ns1[i] = ellipsoid
+            new_ellipsoid = ellipsoid_hyperboloid_intersection(mu1 = matrix(new_mu_ns1[i]), Sigma1 = matrix(new_Sigma_ns1[i]), mu2 = matrix(new_mu_ns1_2[i]), Sigma2 = matrix(new_Sigma_ns1_2[i]), tolerance = 10^(-40))
+            if new_ellipsoid:
+                new_mu_ns1[i], new_Sigma_ns1[i] = new_ellipsoid
                 Vol_1 = ln(matrix(new_Sigma_ns1[i]).det())
             else:
                 if ln(matrix(new_Sigma_ns2[i]).det()) > ln(matrix(new_Sigma_ns2_2[i]).det()):
@@ -548,24 +548,24 @@ for param in params:
             print("Norm based on real: ", (x[i] - mu_re[i]).T@Sigma_re_ns2[i]@(x[i] - mu_re[i]))
             print("Norm based on im: ", (x[i] - mu_im[i]).T@Sigma_im_ns2[i]@(x[i] - mu_im[i]))
             ellnorm1 = 0
-            ellipsoid = ellipsoid_hyperboloid_intersection(mu1 = matrix(np.zeros((4,1))), Sigma1 = matrix(Sigma_elps_inv), mu2 = matrix(mu_re[i]), Sigma2 = matrix(Sigma_re_ns2[i]), tolerance = 10^(-40))
-            if ellipsoid:
-                new_mu_ns2[i], new_Sigma_ns2[i] = ellipsoid
+            new_ellipsoid = ellipsoid_hyperboloid_intersection(mu1 = matrix(np.zeros((4,1))), Sigma1 = matrix(Sigma_elps_inv), mu2 = matrix(mu_re[i]), Sigma2 = matrix(Sigma_re_ns2[i]), tolerance = 10^(-40))
+            if new_ellipsoid:
+                new_mu_ns2[i], new_Sigma_ns2[i] = new_ellipsoid
             else:
                 print("!!!!!!!!!!!!!!")
                 new_mu_ns2[i] = matrix(np.zeros((4,1)))
                 new_Sigma_ns2[i] = matrix(Sigma_elps_inv)
-            ellipsoid = ellipsoid_hyperboloid_intersection(mu1 = matrix(np.zeros((4,1))), Sigma1 = matrix(Sigma_elps_inv), mu2 = matrix(mu_im[i]), Sigma2 = matrix(Sigma_im_ns2[i]), tolerance = 10^(-40))
-            if ellipsoid:
-                new_mu_ns2_2[i], new_Sigma_ns2_2[i] = ellipsoid
+            new_ellipsoid = ellipsoid_hyperboloid_intersection(mu1 = matrix(np.zeros((4,1))), Sigma1 = matrix(Sigma_elps_inv), mu2 = matrix(mu_im[i]), Sigma2 = matrix(Sigma_im_ns2[i]), tolerance = 10^(-40))
+            if new_ellipsoid:
+                new_mu_ns2_2[i], new_Sigma_ns2_2[i] = new_ellipsoid
             else:
                 print("!!!!!!!!!!!!!!")
                 new_mu_ns2_2[i] = matrix(np.zeros((4,1)))
                 new_Sigma_ns2_2[i] = matrix(Sigma_elps_inv)
 
-            ellipsoid = ellipsoid_hyperboloid_intersection(mu1 = matrix(new_mu_ns2[i]), Sigma1 = matrix(new_Sigma_ns2[i]), mu2 = matrix(new_mu_ns2_2[i]), Sigma2 = matrix(new_Sigma_ns2_2[i]), tolerance = 10^(-40))
-            if ellipsoid:
-                new_mu_ns2[i], new_Sigma_ns2[i] = ellipsoid
+            new_ellipsoid = ellipsoid_hyperboloid_intersection(mu1 = matrix(new_mu_ns2[i]), Sigma1 = matrix(new_Sigma_ns2[i]), mu2 = matrix(new_mu_ns2_2[i]), Sigma2 = matrix(new_Sigma_ns2_2[i]), tolerance = 10^(-40))
+            if new_ellipsoid:
+                new_mu_ns2[i], new_Sigma_ns2[i] = new_ellipsoid
                 Vol_2 = ln(matrix(new_Sigma_ns2[i]).det())
                 ellnorm1 = (x[i]-new_mu_ns2[i]).T@new_Sigma_ns2[i]@(x[i]-new_mu_ns2[i])
             else:
