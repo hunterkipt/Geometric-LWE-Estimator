@@ -214,10 +214,10 @@ for param in params:
     std_fresh = sqrt((4/3)*param["n"] + 1)*3.2
 
     
-    # Standard deviation of ciphertext error after 1 multiplication. Equivalent to \rho^2_{mult} from Ana's writeup.  
-    #std_1_mult = sqrt((7*param["n"]**3)*(3.2**4)*((2/3)**2)*2**(-2*param["delta"]) + 2**(-2*param["delta"])*param["n"]*(std_fresh**4 + (1/12)*3.2*3.2) + (param["n"]/18) + (1/12))  
-    std_1_mult = sqrt((7*param["n"]**3)*(3.2**4)*((2/3)**2) + param["n"]*(std_fresh**4 + (1/12)*3.2*3.2) + (param["n"]/18) + (1/12) + 2*msg**2*std_fresh**2)  
-    std_1_mult_2 = sqrt(param["n"]*(std_fresh**4 + (1/12)*3.2*3.2) + (param["n"]/18) + (1/12) + 2*msg**2*std_fresh**2)  
+    # Standard deviation of ciphertext error after 1 multiplication. Equivalent to \rho^2_{mult} from Ana's writeup.
+    #std_1_mult = sqrt((7*param["n"]**3)*(3.2**4)*((2/3)**2)*2**(-2*param["delta"]) + 2**(-2*param["delta"])*param["n"]*(std_fresh**4 + (1/12)*3.2*3.2) + (param["n"]/18) + (1/12))
+    std_1_mult = sqrt((7*param["n"]**3)*(3.2**4)*((2/3)**2) + param["n"]*(std_fresh**4 + (1/12)*3.2*3.2) + (param["n"]/18) + (1/12) + 2*msg**2*std_fresh**2)
+    std_1_mult_2 = sqrt(param["n"]*(std_fresh**4 + (1/12)*3.2*3.2) + (param["n"]/18) + (1/12) + 2*msg**2*std_fresh**2)
 
     # Measurement of fresh ciphertext error variance in bits
     bits_fresh = (1/2)*log(param["n"]*(std_fresh**2 + (1/12)))/log(2) + log(Hc(0.0001, param["n"]))/log(2)
@@ -246,15 +246,15 @@ for param in params:
     
     num_1_mult = 2*param["n"]*adv_queries*log(std_1_mult) + 2*param["n"]*(log(sqrt(2/3)) + log(3.2))
     #denom_1_mult = det_denom(sqrt(2/3), 3.2,
-                        #std_1_mult, msg*sqrt(4*param["n"]*(2/3)*3.2**2)*2**(-param["delta"]), 
+                        #std_1_mult, msg*sqrt(4*param["n"]*(2/3)*3.2**2)*2**(-param["delta"]),
                         #msg*sqrt(4*param["n"]*3.2**4)*2**(-param["delta"]), param["n"], adv_queries)
 
     #denom_1_mult = det_denom(sqrt(2/3), 3.2,
-                        #std_1_mult, msg*sqrt(2/3 + 3.2**2) + sqrt(4*param["n"]*(2/3)*3.2**2), 
+                        #std_1_mult, msg*sqrt(2/3 + 3.2**2) + sqrt(4*param["n"]*(2/3)*3.2**2),
                         #msg*sqrt(2/3 + 3.2**2) + sqrt(4*param["n"]*3.2**4), param["n"], adv_queries)
 
     denom_1_mult = det_denom(sqrt(2/3), 3.2,
-                        std_1_mult, msg*sqrt(2 * 3.2**2) + sqrt(param["n"]*(2/3)*3.2**2), 
+                        std_1_mult, msg*sqrt(2 * 3.2**2) + sqrt(param["n"]*(2/3)*3.2**2),
                         msg*sqrt(2 * 2/3) + sqrt(param["n"]*3.2**4), param["n"], adv_queries)
 
     # Calculate (expected) volume for ellipsoid after t hints
@@ -336,7 +336,7 @@ for param in params:
         E_0_im = np.random.normal(0, 3.2*sqrt(param["n"]//2), (param["n"]//2, 1))
         #E_0_im = np.random.normal(0, sqrt(3.2**2*param["n"]/2 + msg**2*param["n"]/2), (param["n"]//2, 1))
         E_0_im = np.concatenate((E_0_im, E_0_im[::-1]))
-        E_1_re = np.random.normal(0, 3.2*sqrt(param["n"]//2), (param["n"]//2, 1)) 
+        E_1_re = np.random.normal(0, 3.2*sqrt(param["n"]//2), (param["n"]//2, 1))
         E_1_re = np.concatenate((E_1_re, E_1_re[::-1]))
         E_1_im = np.random.normal(0, 3.2*sqrt(param["n"]//2), (param["n"]//2, 1))
         E_1_im = np.concatenate((E_1_im, E_1_im[::-1]))
@@ -346,7 +346,7 @@ for param in params:
         E_0_im_prime = np.random.normal(0, 3.2*sqrt(param["n"]//2), (param["n"]//2, 1))
         #E_0_im_prime = np.random.normal(0, sqrt(3.2**2*param["n"]/2 + msg**2*param["n"]/2), (param["n"]//2, 1))
         E_0_im_prime = np.concatenate((E_0_im_prime, E_0_im_prime[::-1]))
-        E_1_re_prime = np.random.normal(0, 3.2*sqrt(param["n"]//2), (param["n"]//2, 1)) 
+        E_1_re_prime = np.random.normal(0, 3.2*sqrt(param["n"]//2), (param["n"]//2, 1))
         E_1_re_prime = np.concatenate((E_1_re_prime, E_1_re_prime[::-1]))
         E_1_im_prime = np.random.normal(0, 3.2*sqrt(param["n"]//2), (param["n"]//2, 1))
         E_1_im_prime = np.concatenate((E_1_im_prime, E_1_im_prime[::-1]))
@@ -373,21 +373,21 @@ for param in params:
             Q_re[j,3,2] = Q_re[j,2,3]
             Q_im[j,2,3] = V_im[j]*V_im_prime[j] - V_re[j]*V_re_prime[j]
             Q_im[j,3,2] = Q_im[j,2,3]
-            Q_re[j,0,2] = (V_re[j]*E_1_re_prime[j] - V_im[j]*E_1_im_prime[j] + V_re_prime[j]*E_1_re[j] - V_im_prime[j]*E_1_im[j])/2  
+            Q_re[j,0,2] = (V_re[j]*E_1_re_prime[j] - V_im[j]*E_1_im_prime[j] + V_re_prime[j]*E_1_re[j] - V_im_prime[j]*E_1_im[j])/2
             Q_re[j,2,0] = Q_re[j,0,2]
-            Q_im[j,0,2] = -(V_re[j]*E_1_im_prime[j] + V_im[j]*E_1_re_prime[j] + V_re_prime[j]*E_1_im[j] + V_im_prime[j]*E_1_re[j])/2  
+            Q_im[j,0,2] = -(V_re[j]*E_1_im_prime[j] + V_im[j]*E_1_re_prime[j] + V_re_prime[j]*E_1_im[j] + V_im_prime[j]*E_1_re[j])/2
             Q_im[j,2,0] = Q_im[j,0,2]
-            Q_re[j,1,3] = -(V_re[j]*E_1_re_prime[j] - V_im[j]*E_1_im_prime[j] + V_re_prime[j]*E_1_re[j] - V_im_prime[j]*E_1_im[j])/2  
+            Q_re[j,1,3] = -(V_re[j]*E_1_re_prime[j] - V_im[j]*E_1_im_prime[j] + V_re_prime[j]*E_1_re[j] - V_im_prime[j]*E_1_im[j])/2
             Q_re[j,3,1] = Q_re[j,1,3]
-            Q_im[j,1,3] = (V_re[j]*E_1_im_prime[j] + V_im[j]*E_1_re_prime[j] + V_re_prime[j]*E_1_im[j] + V_im_prime[j]*E_1_re[j])/2  
+            Q_im[j,1,3] = (V_re[j]*E_1_im_prime[j] + V_im[j]*E_1_re_prime[j] + V_re_prime[j]*E_1_im[j] + V_im_prime[j]*E_1_re[j])/2
             Q_im[j,3,1] = Q_im[j,1,3]
-            Q_re[j,0,3] = -(V_re[j]*E_1_im_prime[j] + V_im[j]*E_1_re_prime[j] + V_re_prime[j]*E_1_im[j] + V_im_prime[j]*E_1_re[j])/2  
+            Q_re[j,0,3] = -(V_re[j]*E_1_im_prime[j] + V_im[j]*E_1_re_prime[j] + V_re_prime[j]*E_1_im[j] + V_im_prime[j]*E_1_re[j])/2
             Q_re[j,3,0] = Q_re[j,0,3]
-            Q_im[j,0,3] = -(V_re[j]*E_1_re_prime[j] - V_im[j]*E_1_im_prime[j] + V_re_prime[j]*E_1_re[j] - V_im_prime[j]*E_1_im[j])/2  
+            Q_im[j,0,3] = -(V_re[j]*E_1_re_prime[j] - V_im[j]*E_1_im_prime[j] + V_re_prime[j]*E_1_re[j] - V_im_prime[j]*E_1_im[j])/2
             Q_im[j,3,0] = Q_im[j,0,3]
-            Q_re[j,1,2] = -(V_re[j]*E_1_re_prime[j] + V_im[j]*E_1_im_prime[j] + V_re_prime[j]*E_1_re[j] + V_im_prime[j]*E_1_im[j])/2  
+            Q_re[j,1,2] = -(V_re[j]*E_1_re_prime[j] + V_im[j]*E_1_im_prime[j] + V_re_prime[j]*E_1_re[j] + V_im_prime[j]*E_1_im[j])/2
             Q_re[j,2,1] = Q_re[j,1,2]
-            Q_im[j,1,2] = -(V_re[j]*E_1_im_prime[j] - V_im[j]*E_1_re_prime[j] + V_re_prime[j]*E_1_im[j] - V_im_prime[j]*E_1_re[j])/2  
+            Q_im[j,1,2] = -(V_re[j]*E_1_im_prime[j] - V_im[j]*E_1_re_prime[j] + V_re_prime[j]*E_1_im[j] - V_im_prime[j]*E_1_re[j])/2
             Q_im[j,2,1] = Q_im[j,1,2]
         #for j in range(param["n"]//2+1, param["n"]):
         for j in range(1):
@@ -407,21 +407,21 @@ for param in params:
             Q_re[j,3,2] = Q_re[j,2,3]
             Q_im[j,2,3] = V_re[j]*V_re_prime[j] - V_im[j]*V_im_prime[j]
             Q_im[j,3,2] = Q_im[j,2,3]
-            Q_re[j,0,2] = (V_re[j]*E_1_re_prime[j] - V_im[j]*E_1_im_prime[j] + V_re_prime[j]*E_1_re[j] - V_im_prime[j]*E_1_im[j])/2  
+            Q_re[j,0,2] = (V_re[j]*E_1_re_prime[j] - V_im[j]*E_1_im_prime[j] + V_re_prime[j]*E_1_re[j] - V_im_prime[j]*E_1_im[j])/2
             Q_re[j,2,0] = Q_re[j,0,2]
-            Q_im[j,0,2] = (V_re[j]*E_1_im_prime[j] + V_im[j]*E_1_re_prime[j] + V_re_prime[j]*E_1_im[j] + V_im_prime[j]*E_1_re[j])/2  
+            Q_im[j,0,2] = (V_re[j]*E_1_im_prime[j] + V_im[j]*E_1_re_prime[j] + V_re_prime[j]*E_1_im[j] + V_im_prime[j]*E_1_re[j])/2
             Q_im[j,2,0] = Q_im[j,0,2]
-            Q_re[j,1,3] = -(V_re[j]*E_1_re_prime[j] - V_im[j]*E_1_im_prime[j] + V_re_prime[j]*E_1_re[j] - V_im_prime[j]*E_1_im[j])/2  
+            Q_re[j,1,3] = -(V_re[j]*E_1_re_prime[j] - V_im[j]*E_1_im_prime[j] + V_re_prime[j]*E_1_re[j] - V_im_prime[j]*E_1_im[j])/2
             Q_re[j,3,1] = Q_re[j,1,3]
-            Q_im[j,1,3] = -(V_re[j]*E_1_im_prime[j] + V_im[j]*E_1_re_prime[j] + V_re_prime[j]*E_1_im[j] + V_im_prime[j]*E_1_re[j])/2  
+            Q_im[j,1,3] = -(V_re[j]*E_1_im_prime[j] + V_im[j]*E_1_re_prime[j] + V_re_prime[j]*E_1_im[j] + V_im_prime[j]*E_1_re[j])/2
             Q_im[j,3,1] = Q_im[j,1,3]
-            Q_re[j,0,3] = -(V_re[j]*E_1_im_prime[j] + V_im[j]*E_1_re_prime[j] + V_re_prime[j]*E_1_im[j] + V_im_prime[j]*E_1_re[j])/2  
+            Q_re[j,0,3] = -(V_re[j]*E_1_im_prime[j] + V_im[j]*E_1_re_prime[j] + V_re_prime[j]*E_1_im[j] + V_im_prime[j]*E_1_re[j])/2
             Q_re[j,3,0] = Q_re[j,0,3]
-            Q_im[j,0,3] = (V_re[j]*E_1_re_prime[j] - V_im[j]*E_1_im_prime[j] + V_re_prime[j]*E_1_re[j] - V_im_prime[j]*E_1_im[j])/2  
+            Q_im[j,0,3] = (V_re[j]*E_1_re_prime[j] - V_im[j]*E_1_im_prime[j] + V_re_prime[j]*E_1_re[j] - V_im_prime[j]*E_1_im[j])/2
             Q_im[j,3,0] = Q_im[j,0,3]
-            Q_re[j,1,2] = (V_re[j]*E_1_im_prime[j] + V_im[j]*E_1_re_prime[j] + V_re_prime[j]*E_1_im[j] + V_im_prime[j]*E_1_re[j])/2  
+            Q_re[j,1,2] = (V_re[j]*E_1_im_prime[j] + V_im[j]*E_1_re_prime[j] + V_re_prime[j]*E_1_im[j] + V_im_prime[j]*E_1_re[j])/2
             Q_re[j,2,1] = Q_re[j,1,2]
-            Q_im[j,1,2] = -(V_re[j]*E_1_re_prime[j] - V_im[j]*E_1_im_prime[j] + V_re_prime[j]*E_1_re[j] - V_im_prime[j]*E_1_im[j])/2  
+            Q_im[j,1,2] = -(V_re[j]*E_1_re_prime[j] - V_im[j]*E_1_im_prime[j] + V_re_prime[j]*E_1_re[j] - V_im_prime[j]*E_1_im[j])/2
             Q_im[j,2,1] = Q_im[j,1,2]
 
         # Plug the variables into the x vector
@@ -440,27 +440,27 @@ for param in params:
         L_im = np.zeros((1, 4, 1))
         #for j in range(param["n"]//2):
         for j in range(1):
-            L_re[j,0,0] = E_0_re[j]*E_1_re_prime[j] - E_0_im[j]*E_1_im_prime[j] + E_0_re_prime[j]*E_1_re[j] - E_0_im_prime[j]*E_1_im[j] 
-            L_re[j,1,0] = -(E_0_re[j]*E_1_im_prime[j] + E_0_im[j]*E_1_re_prime[j] + E_0_re_prime[j]*E_1_im[j] + E_0_im_prime[j]*E_1_re[j]) 
-            L_re[j,2,0] = V_re[j]*E_0_re_prime[j] - V_im[j]*E_0_im_prime[j] + V_re_prime[j]*E_0_re[j] - V_im_prime[j]*E_0_im[j] 
-            L_re[j,3,0] = -(V_re[j]*E_0_im_prime[j] + V_im[j]*E_0_re_prime[j] + V_re_prime[j]*E_0_im[j] + V_im_prime[j]*E_0_re[j]) 
+            L_re[j,0,0] = E_0_re[j]*E_1_re_prime[j] - E_0_im[j]*E_1_im_prime[j] + E_0_re_prime[j]*E_1_re[j] - E_0_im_prime[j]*E_1_im[j]
+            L_re[j,1,0] = -(E_0_re[j]*E_1_im_prime[j] + E_0_im[j]*E_1_re_prime[j] + E_0_re_prime[j]*E_1_im[j] + E_0_im_prime[j]*E_1_re[j])
+            L_re[j,2,0] = V_re[j]*E_0_re_prime[j] - V_im[j]*E_0_im_prime[j] + V_re_prime[j]*E_0_re[j] - V_im_prime[j]*E_0_im[j]
+            L_re[j,3,0] = -(V_re[j]*E_0_im_prime[j] + V_im[j]*E_0_re_prime[j] + V_re_prime[j]*E_0_im[j] + V_im_prime[j]*E_0_re[j])
 
-            L_im[j,0,0] = -(E_0_re[j]*E_1_re_prime[j] + E_0_im[j]*E_1_im_prime[j] + E_0_re_prime[j]*E_1_re[j] + E_0_im_prime[j]*E_1_im[j]) 
-            L_im[j,1,0] = -(E_0_re[j]*E_1_im_prime[j] - E_0_im[j]*E_1_re_prime[j] + E_0_re_prime[j]*E_1_im[j] - E_0_im_prime[j]*E_1_re[j]) 
-            L_im[j,2,0] = -(V_re[j]*E_0_im_prime[j] + V_im[j]*E_0_re_prime[j] + V_re_prime[j]*E_0_im[j] + V_im_prime[j]*E_0_re[j])  
-            L_im[j,3,0] = V_re[j]*E_0_re_prime[j] - V_im[j]*E_0_im_prime[j] + V_re_prime[j]*E_0_re[j] - V_im_prime[j]*E_0_im[j] 
+            L_im[j,0,0] = -(E_0_re[j]*E_1_re_prime[j] + E_0_im[j]*E_1_im_prime[j] + E_0_re_prime[j]*E_1_re[j] + E_0_im_prime[j]*E_1_im[j])
+            L_im[j,1,0] = -(E_0_re[j]*E_1_im_prime[j] - E_0_im[j]*E_1_re_prime[j] + E_0_re_prime[j]*E_1_im[j] - E_0_im_prime[j]*E_1_re[j])
+            L_im[j,2,0] = -(V_re[j]*E_0_im_prime[j] + V_im[j]*E_0_re_prime[j] + V_re_prime[j]*E_0_im[j] + V_im_prime[j]*E_0_re[j])
+            L_im[j,3,0] = V_re[j]*E_0_re_prime[j] - V_im[j]*E_0_im_prime[j] + V_re_prime[j]*E_0_re[j] - V_im_prime[j]*E_0_im[j]
                 
         #for j in range(param["n"]//2, param["n"]):
         for j in range(1):
-            L_re[j,0,0] = E_0_re[j]*E_1_re_prime[j] - E_0_im[j]*E_1_im_prime[j] + E_0_re_prime[j]*E_1_re[j] - E_0_im_prime[j]*E_1_im[j] 
-            L_re[j,1,0] = -(E_0_re[j]*E_1_im_prime[j] + E_0_im[j]*E_1_re_prime[j] + E_0_re_prime[j]*E_1_im[j] + E_0_im_prime[j]*E_1_re[j])  
-            L_re[j,2,0] = V_re[j]*E_0_re_prime[j] - V_im[j]*E_0_im_prime[j] + V_re_prime[j]*E_0_re[j] - V_im_prime[j]*E_0_im[j] 
-            L_re[j,3,0] = -(V_re[j]*E_0_im_prime[j] + V_im[j]*E_0_re_prime[j] + V_re_prime[j]*E_0_im[j] + V_im_prime[j]*E_0_re[j]) 
+            L_re[j,0,0] = E_0_re[j]*E_1_re_prime[j] - E_0_im[j]*E_1_im_prime[j] + E_0_re_prime[j]*E_1_re[j] - E_0_im_prime[j]*E_1_im[j]
+            L_re[j,1,0] = -(E_0_re[j]*E_1_im_prime[j] + E_0_im[j]*E_1_re_prime[j] + E_0_re_prime[j]*E_1_im[j] + E_0_im_prime[j]*E_1_re[j])
+            L_re[j,2,0] = V_re[j]*E_0_re_prime[j] - V_im[j]*E_0_im_prime[j] + V_re_prime[j]*E_0_re[j] - V_im_prime[j]*E_0_im[j]
+            L_re[j,3,0] = -(V_re[j]*E_0_im_prime[j] + V_im[j]*E_0_re_prime[j] + V_re_prime[j]*E_0_im[j] + V_im_prime[j]*E_0_re[j])
 
-            L_im[j,0,0] = E_0_re[j]*E_1_re_prime[j] + E_0_im[j]*E_1_re_prime[j] + E_0_re_prime[j]*E_1_im[j] + E_0_im_prime[j]*E_1_re[j] 
-            L_im[j,1,0] = -(E_0_re[j]*E_1_re_prime[j] - E_0_im[j]*E_1_im_prime[j] + E_0_re_prime[j]*E_1_re[j] - E_0_im_prime[j]*E_1_im[j])  
-            L_im[j,2,0] = V_re[j]*E_0_im_prime[j] + V_im[j]*E_0_re_prime[j] + V_re_prime[j]*E_0_im[j] + V_im_prime[j]*E_0_re[j] 
-            L_im[j,3,0] = -(V_re[j]*E_0_re_prime[j] - V_im[j]*E_0_im_prime[j] + V_re_prime[j]*E_0_re[j] - V_im_prime[j]*E_0_im[j]) 
+            L_im[j,0,0] = E_0_re[j]*E_1_re_prime[j] + E_0_im[j]*E_1_re_prime[j] + E_0_re_prime[j]*E_1_im[j] + E_0_im_prime[j]*E_1_re[j]
+            L_im[j,1,0] = -(E_0_re[j]*E_1_re_prime[j] - E_0_im[j]*E_1_im_prime[j] + E_0_re_prime[j]*E_1_re[j] - E_0_im_prime[j]*E_1_im[j])
+            L_im[j,2,0] = V_re[j]*E_0_im_prime[j] + V_im[j]*E_0_re_prime[j] + V_re_prime[j]*E_0_im[j] + V_im_prime[j]*E_0_re[j]
+            L_im[j,3,0] = -(V_re[j]*E_0_re_prime[j] - V_im[j]*E_0_im_prime[j] + V_re_prime[j]*E_0_re[j] - V_im_prime[j]*E_0_im[j])
         # calculate mu and c for (x-mu_re)^T*Q_re*(x-mu_re) + c_re + noise = gamma_re
         #mu_re = np.zeros((param["n"], 4, 1))
         #c_re = np.zeros((param["n"], 1))
@@ -500,10 +500,10 @@ for param in params:
         for i in range(1):
             #1. use sigma_eps_mult(ns1) to add noise to the quadratic form
             mu_re[i] =  -0.5 * np.linalg.pinv(Q_re[i]) @ L_re[i]
-            c_re[i] = -mu_re[i].T@Q_re[i]@mu_re[i] 
+            c_re[i] = -mu_re[i].T@Q_re[i]@mu_re[i]
             # use sigma_eps(ns1) to add noise to the real part of the quadratic form
-            gamma_re_ns1 = (x[i]-mu_re[i]).T@Q_re[i]@(x[i]-mu_re[i]) + c_re[i] + np.random.normal(0, sqrt(param["n"]//2)*sigma_eps_1_mult, 1)   
-            Sigma_elps = np.diag([4*param["n"]//2*2/3, 4*param["n"]//2*2/3, 4*param["n"]//2*3.2**2, 4*param["n"]//2*3.2**2])  
+            gamma_re_ns1 = (x[i]-mu_re[i]).T@Q_re[i]@(x[i]-mu_re[i]) + c_re[i] + np.random.normal(0, sqrt(param["n"]//2)*sigma_eps_1_mult, 1)
+            Sigma_elps = np.diag([4*param["n"]//2*2/3, 4*param["n"]//2*2/3, 4*param["n"]//2*3.2**2, 4*param["n"]//2*3.2**2])
             Sigma_sqrt = np.diag([sqrt(param["n"]//2*2/3), sqrt(param["n"]//2*2/3), sqrt(param["n"]//2*3.2**2), sqrt(param["n"]//2*3.2**2)])
             # Get the inverse of matrix Sigma_elps
             Sigma_elps_inv = np.linalg.pinv(Sigma_elps)
@@ -518,9 +518,9 @@ for param in params:
             mean_1, var_1, mean_2, var_2 = expected_ellipsoid_norm(Sigma_sqrt, matrix(np.zeros((4,1))), sqrt(param["n"]/2)*sigma_eps_1_mult, Q_re[i], mu_re[i], Q_im[i], mu_im[i], 4, gamma_re_ns1 - c_re[i], gamma_im_ns1 - c_im[i])
             Sigma_1_1 = np.linalg.pinv(var_1)/4
             Sigma_2_1 = np.linalg.pinv(var_2)/4
-            noint_flag = empty_ellipsoid_hyperboloid_intersection(mu1 = matrix(mean_1), Sigma1 = matrix(Sigma_1_1), mu2 = matrix(mean_2), Sigma2 = matrix(Sigma_2_1), lb = 10^(-40))                
-            if noint_flag == 0:
-                new_mu_ns1[i], new_Sigma_ns1[i] = ellipsoid_hyperboloid_intersection(mu1 = matrix(mean_1), Sigma1 = matrix(Sigma_1_1), mu2 = matrix(mean_2), Sigma2 = matrix(Sigma_2_1), lb = 10^(-40))
+            ellipsoid = ellipsoid_hyperboloid_intersection(mu1 = matrix(mean_1), Sigma1 = matrix(Sigma_1_1), mu2 = matrix(mean_2), Sigma2 = matrix(Sigma_2_1), tolerance = 10^(-40))
+            if ellipsoid:
+                new_mu_ns1[i], new_Sigma_ns1[i] = ellipsoid
                 Vol_1 = ln(matrix(new_Sigma_ns1[i]).det())
             else:
                 Vol_1 = np.maximum(ln(matrix(Sigma_1_1).det()), ln(matrix(Sigma_2_1).det()))
@@ -536,17 +536,16 @@ for param in params:
             Sigma_2_1 = np.linalg.pinv(var_2)/4
             print("Norm based on real: ", (x[i] - mean_1).T@Sigma_1_1@(x[i] - mean_1))
             print("Norm based on im: ", (x[i] - mean_2).T@Sigma_2_1@(x[i] - mean_2))
-            noint_flag = empty_ellipsoid_hyperboloid_intersection(mu1 = matrix(mean_1), Sigma1 = matrix(Sigma_1_1), mu2 = matrix(mean_2), Sigma2 = matrix(Sigma_2_1), lb = 10^(-40))                
-            ellnorm1 = 0
             print("Initial volume 1: ", ln(matrix(Sigma_1_1).det()))
             print("Initial volume 2: ", ln(matrix(Sigma_2_1).det()))
-            if noint_flag == 1:
-                print("!!!!!!!!!!!!!!")
-            if noint_flag == 0:
-                new_mu_ns2[i], new_Sigma_ns2[i] = ellipsoid_hyperboloid_intersection(mu1 = matrix(mean_1), Sigma1 = matrix(Sigma_1_1), mu2 = matrix(mean_2), Sigma2 = matrix(Sigma_2_1), lb = 10^(-40))
+            ellnorm1 = 0
+            ellipsoid = ellipsoid_hyperboloid_intersection(mu1 = matrix(mean_1), Sigma1 = matrix(Sigma_1_1), mu2 = matrix(mean_2), Sigma2 = matrix(Sigma_2_1), tolerance = 10^(-40))
+            if ellipsoid:
+                new_mu_ns2[i], new_Sigma_ns2[i] = ellipsoid
                 Vol_2 = ln(matrix(new_Sigma_ns2[i]).det())
                 ellnorm1 = (x[i] - new_mu_ns2[i]).T@new_Sigma_ns2[i]@(x[i] - new_mu_ns2[i])
             else:
+                print("!!!!!!!!!!!!!!")
                 if ln(matrix(Sigma_1_1).det()) > ln(matrix(Sigma_2_1).det()):
                     ellnorm1 = (x[i]-mean_1).T@Sigma_1_1@(x[i]-mean_1)
                     Vol_2 = ln(matrix(Sigma_1_1).det())
@@ -617,4 +616,3 @@ for param in params:
     print(f"BKZ Beta Estimate ({adv_queries} Hint, noise flooding variance = rho_fresh): {beta_t_hints_fresh: .3f} bikz ~ {beta_t_hints_fresh*0.265: .2f} bits")
     print(f"BKZ Beta Estimate ({adv_queries} Hint, 1 Multiplication: sigma_eps = ct_noise + squared terms), msg = 5*N: {beta_t_hints_1_mult: .3f} bikz ~ {beta_t_hints_1_mult*0.265: .2f} bits")
     print("")
-
