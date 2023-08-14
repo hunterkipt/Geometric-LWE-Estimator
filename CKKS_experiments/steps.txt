@@ -1,0 +1,58 @@
+Take negative log determinant. Add 4ln(4). Multiply by N/2. Add 2N ln(N/2). Divide by 2. Add N ln(q). This is the final volume.
+
+
+
+Yehuda laundry, my laundry
+X Elnatan Art of Problem Solving
+X Mugs for Tali + Rachel
+X Pictures off my phone
+X Brightwheel
+X Shira bat mitzvah
+X Gift for Shifra's baby
+
+
+301-468-9225
+
+
+XMASJULY2023
+$40--Orly Yariv
+$15--Sheininger
+$40--Shaked Cohen
+$20--Rachel Sushner
+$40--Tikvah Sadik
+$40--Tehila Cohen
+$20--Michelle Penn
+
+2 gift cards of $130 each
+
+
+Mohammad Mahmoody**
+Benny Applebaum**
+Maciej Obremski
+Marshall Ball**
+Adam Smith**
+Ilan Komargodski**
+Siyao Guo**
+Vipul Goyal**
+Tianren Liu (?)**
+Ron Rothblum**
+Fermi Ma
+Rachel Lin
+Stefano Tessaro**
+Shuichi Hirahara
+Sruthi Sekar**
+
+
+
+
+***Respectfully disagree.
+misunderstood/misunderstandings
+We clarify pitfalls made by the reviewers
+
+disagree on the soundness and contribution, think they misunderstand some key concepts
+
+continuous in future work/further investigated
+
+
+
+
