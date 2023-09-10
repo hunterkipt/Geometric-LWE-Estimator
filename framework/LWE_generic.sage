@@ -79,7 +79,7 @@ class LWE_generic:
         """
         return self.embed_into_DBDD(dbdd_class=DBDD_predict_diag)
 
-    def embed_into_EBDD(self, ebdd_class=EBDD):
+    def embed_into_EBDD(self, ebdd_class=EBDD, Sigma_s_e=None, mean_s=None, mean_e=None):
         """
         Factory method for creating an ellipsoidal DBDD instance from the underlying cryptographic instance.
         :n: (integer) size of the secret s
@@ -87,6 +87,8 @@ class LWE_generic:
         :m: (integer) size of the error e
         :D_e: distribution of the error e (dictionnary form)
         :D_s: distribution of the secret s (dictionnary form)
+        :Sigma_s_e: an array of known covariances for [s || e] (otherwise default to info provided in D_e and D_s)
+        :mean_s_e: an array of known means for [s || e] (otherwise default to info provided in D_e and D_s)
         """
         if self.verbosity:
             logging("     Build EBDD from LWE     ", style="HEADER")
@@ -109,9 +111,9 @@ class LWE_generic:
         else:
             self.c = (self.s * self.A.T + self.e_vec - self.b)/self.q
             u = concatenate([self.c, self.s])
-
+        
         # Compute Kannan ellipsoid embedding
-        mu, S = kannan_ellipsoid(self.A, self.b, self.q, s_s=s_s, s_e=s_e, homogeneous=False)
+        mu, S = kannan_ellipsoid(self.A, self.b, self.q, s_s=s_s, s_e=s_e, homogeneous=False, Sigma_s_e=Sigma_s_e, mean_s=mean_s, mean_e=mean_e)
         
         B = identity_matrix(self.n + self.m)
         return ebdd_class(B, S, mu, self, u, verbosity=self.verbosity, ellip_scale=1)
@@ -122,3 +124,4 @@ class LWE_generic:
         Note: The resulting EBDD instance assumes the ellipsoid shape matrix is full-rank, so perfect hints aren't supported.
         """
         return self.embed_into_EBDD(ebdd_class=EBDD_dec_fail)
+
