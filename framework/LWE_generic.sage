@@ -88,7 +88,8 @@ class LWE_generic:
         :D_e: distribution of the error e (dictionnary form)
         :D_s: distribution of the secret s (dictionnary form)
         :Sigma_s_e: an array of known covariances for [s || e] (otherwise default to info provided in D_e and D_s)
-        :mean_s_e: an array of known means for [s || e] (otherwise default to info provided in D_e and D_s)
+        :mean_s: an array of known means for s (otherwise default to info provided in D_s)
+        :mean_e: an array of known means for e (otherwise default to info provided in D_e)
         """
         if self.verbosity:
             logging("     Build EBDD from LWE     ", style="HEADER")
