@@ -138,9 +138,6 @@ class LWE_generic:
             u = concatenate([self.c, self.s])
 
 
-        print(sigma_se)
-        print(mean_s)
-        print(mean_e)
         # Compute Kannan ellipsoid embedding
         mu, S = kannan_ellipsoid(self.A, self.b, self.q, s_s=s_s, s_e=s_e, homogeneous=False, Sigma_s_e=sigma_se, mean_s=mean_s, mean_e=mean_e)
         
