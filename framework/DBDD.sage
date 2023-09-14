@@ -416,9 +416,12 @@ class DBDD(DBDD_generic):
                                         estimate=False)
         print("Kannan shaping for LWE ellipsoid hints_real c completes.")
 
-    def ellip_norm(self, u=self.u):
+    def ellip_norm(self, u=None):
         if u is None:
-            raise InvalidArgument("Solution vector must exist to calculate norm")
+            u = self.u
+
+            if u is None:
+                raise ValueError("Solution vector must exist to calculate norm")
         # DBDD_S = round_matrix_to_rational(self.S)
         try:
             inv = (self.S + self.mu.T*self.mu).inverse()

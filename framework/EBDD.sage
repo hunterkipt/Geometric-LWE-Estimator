@@ -162,9 +162,12 @@ class EBDD(DBDD_generic):
         # print(np.linalg.eigvalsh(S))
         return S
 
-    def ellip_norm(self, u=self.u):
+    def ellip_norm(self, u=None):
         if u is None:
-            raise InvalidArgument("Solution vector must exist to calculate norm")
+            u = self.u
+
+            if u is None:
+                raise InvalidArgument("Solution vector must exist to calculate norm")
 
         try:
             _, Linv = square_root_inverse_degen(self.S, self.B)
