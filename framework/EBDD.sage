@@ -583,8 +583,6 @@ class EBDD(DBDD_generic):
 
                     solution_plus = solution + self.offset
                     solution_minus = solution - self.offset
-                    print("Solution plus:", solution_plus)
-                    print("Solution minus:", solution_minus)
                     if not self.check_solution(solution_plus) and not self.check_solution(solution_minus):
                         continue
 
@@ -633,3 +631,31 @@ class EBDD(DBDD_generic):
             self.verbosity = verbosity if (it % report_every == 0) else 0
         self.verbosity = verbosity
         return [vec(M[i]) for i in J]
+
+    def check_solution(self, solution):
+        """ Checks wether the solution is correct
+        If the private attributes of the instance are not None,
+        the solution is compared to them. It outputs True
+        if the solution is indeed the same as the private s and e,
+        False otherwise.
+        If the private e and s are not stored, we check that the
+        solution is small enough.
+        :solution: a vector
+        """
+
+        if self.u is not None:
+            if self.circulant:
+                return (sorted(self.u.list()) == sorted(solution.list())) or (sorted(self.u.list()) == sorted((- solution).list())) 
+            return (self.u == solution or self.u == - vec(solution))
+
+        # print("Solution: ", solution, " Ellip norm: ", self.ellip_norm(solution), self.ellip_norm(-solution), "Expected: ", 1.2*self.expected_length)
+        if self.ellip_norm(solution) > 1.2 * self.expected_length and self.ellip_norm(-solution) > 1.2 * self.expected_length:
+            return False
+ 
+        if self.u is None:
+            return True
+
+        if self.verbosity:
+            self.logging("Found an incorrect short solution.",
+                         priority=-1, style="WARNING")
+        return False

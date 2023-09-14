@@ -208,8 +208,9 @@ class DBDD_generic:
                 return (sorted(self.u.list()) == sorted(solution.list())) or (sorted(self.u.list()) == sorted((- solution).list())) 
             return (self.u == solution or self.u == - vec(solution))
 
-        if self.ellip_norm(solution) > 1.2 * self.expected_length:
+        if self.ellip_norm(solution) > 1.2 * self.expected_length and self.ellip_norm(-solution) > 1.2 * self.expected_length:
             return False
+
             
         if scal(solution * solution.T) > 1.2 * self.expected_length:
             return False
