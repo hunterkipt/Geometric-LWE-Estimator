@@ -583,6 +583,8 @@ class EBDD(DBDD_generic):
 
                     solution_plus = solution + self.offset
                     solution_minus = solution - self.offset
+                    print("Solution plus:", solution_plus)
+                    print("Solution minus:", solution_minus)
                     if not self.check_solution(solution_plus) and not self.check_solution(solution_minus):
                         continue
 

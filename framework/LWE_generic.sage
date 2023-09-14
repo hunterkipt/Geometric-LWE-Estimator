@@ -35,6 +35,7 @@ class LWE_generic:
             logging("     Build DBDD from LWE     ", style="HEADER")
             logging("n=%3d \t m=%3d \t q=%d" % (self.n, self.m, self.q), style="VALUE")
 
+
         # define the mean and sigma of the instance
         mu_e, s_e = average_variance(self.D_e)
         mu_s, s_s = average_variance(self.D_s)
@@ -85,16 +86,42 @@ class LWE_generic:
         :n: (integer) size of the secret s
         :q: (integer) modulus
         :m: (integer) size of the error e
-        :D_e: distribution of the error e (dictionnary form)
-        :D_s: distribution of the secret s (dictionnary form)
+        :D_e: distribution of the error e (dictionary form)
+        :D_s: distribution of the secret s (dictionary form)
         """
         if self.verbosity:
             logging("     Build EBDD from LWE     ", style="HEADER")
             logging("n=%3d \t m=%3d \t q=%d" % (self.n, self.m, self.q), style="VALUE")
         
         # Define mean and variance of instance
+        s_e = None
+        s_s = None
+
+        sigma_se = None
+        mean_s = None
+        mean_e = None
+
         _, s_e = average_variance(self.D_e)
         _, s_s = average_variance(self.D_s)
+
+        if s_e == None:
+            s_e = 1
+
+        if s_s == None:
+            s_s = 1
+
+        if self.Sigma_s is not None and self.Sigma_e is not None:
+            sigma_se = diagonal_matrix(QQ, self.Sigma_e + self.Sigma_s)
+        elif self.Sigma_s is not None:
+            sigma_se = diagonal_matrix(QQ, self.m*[s_e] + self.Sigma_s)
+        elif self.Sigma_e is not None:
+            sigma_se = diagonal_matrix(QQ, self.Sigma_e + self.n * [s_s])
+
+        if self.mean_s is not None:
+            mean_s = vec(self.mean_s)
+
+        if self.mean_e is not None:
+            mean_e = vec(self.mean_e)
 
         # Ensure A matrix is centered for ellipsoidal embedding
         self.A = self.A.apply_map(recenter)
@@ -110,8 +137,12 @@ class LWE_generic:
             self.c = (self.s * self.A.T + self.e_vec - self.b)/self.q
             u = concatenate([self.c, self.s])
 
+
+        print(sigma_se)
+        print(mean_s)
+        print(mean_e)
         # Compute Kannan ellipsoid embedding
-        mu, S = kannan_ellipsoid(self.A, self.b, self.q, s_s=s_s, s_e=s_e, homogeneous=False)
+        mu, S = kannan_ellipsoid(self.A, self.b, self.q, s_s=s_s, s_e=s_e, homogeneous=False, Sigma_s_e=sigma_se, mean_s=mean_s, mean_e=mean_e)
         
         B = identity_matrix(self.n + self.m)
         return ebdd_class(B, S, mu, self, u, verbosity=self.verbosity, ellip_scale=1)
