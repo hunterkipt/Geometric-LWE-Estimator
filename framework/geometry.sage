@@ -605,6 +605,74 @@ def ellipsoid_hyperboloid_intersection(mu1, Sigma1, mu2, Sigma2, tolerance=1.48e
     new_mu, new_Sigma  = ellipsoid(tau_min)
     return round_matrix_to_rational(new_mu), round_matrix_to_rational(new_Sigma)
 
+def ellipsoid_quadratic_froms_intersection(*mu_Sigma, lb=1e-8, tolerance=1.48e-08):
+    # determines the maximum value of the parametrization for which the quadratic form will be PSD
+    # lambda_min = min(e for e, _, _ in Sigma2.eigenvectors_left(Sigma1))
+    # tau_max = min(1, 1 / (1 - lambda_min)-.001)
+    tau_max = 1
+    LARGE_PENALTY_VALUE = 1e10
+    # Initialize empty lists to store mu's and sigma's
+    mus = []
+    Sigmas = []
+    # Loop through the arguments two at a time
+    for i in range(0, len(mu_Sigma), 2):
+        mu, Sigma = mu_Sigma[i], mu_Sigma[i+1]
+        
+        # Append mu and sigma to their respective lists
+        mus.append(matrix(mu.reshape(-1, 1)))
+        Sigmas.append(matrix(Sigma))
+    n = len(mu_Sigma)//2
+    def ellipsoid(tau):
+        # calculates the parametrized intersection ellipsoid given the parameter tau
+        # define a function that computes the convex combination of n matrices from Sigma
+        def c_n(Sigma):
+            sum_Sigma = matrix(np.zeros_like(Sigma[0]).tolist())
+            for i in range(n):
+                sum_Sigma += float(tau[i].real) * Sigma[i]
+            return sum_Sigma
+
+        # computes the new mean and variance
+        Sigma_tau = c_n(Sigmas)
+        sum_tau_Sigma_mu = matrix(np.zeros_like(mus[0]).tolist())
+        for i in range(n):
+            sum_tau_Sigma_mu += float(tau[i].real) * Sigmas[i] * mus[i]
+        Sigma_tau_inv = Sigma_tau^-1
+        mu = Sigma_tau_inv * sum_tau_Sigma_mu   # Make sure the shapes are correct
+        v = 0
+        for i in range(n):
+            v += float(tau[i].real) * mus[i].T  * Sigmas[i] * mus[i]
+        # v -= sum_tau_Sigma_mu.T * Sigma_tau * sum_tau_Sigma_mu
+        v -= sum_tau_Sigma_mu.T * Sigma_tau_inv * sum_tau_Sigma_mu
+        # print("v: ", v)
+        # v = scal(v)
+        if (1-v) < lb:
+            v = 1-lb
+        Sigma = (1 - scal(v))^-1 * Sigma_tau
+        return mu, Sigma
+    def determinant(tau):
+        # calculates the determinant of the parametrized ellipsoid
+        _, Sigma = ellipsoid(tau)
+        if not is_pos_def(Sigma):
+        # If Sigma is not positive semidefinite, return a large penalty value
+            return LARGE_PENALTY_VALUE
+        return -ln(Sigma.det())
+    def is_pos_def(x):
+        return np.all(np.linalg.eigvals(x) > 0)
+    
+    x0 = np.zeros(n)
+    x0[0] = 1
+    bounds = [(0, 1) for _ in range(n)]
+    linear_constraint = LinearConstraint(np.ones(n), 1, 1)
+    # determines the value of tau which minimizes the determinant
+    res = minimize(determinant, x0, bounds=bounds, constraints=linear_constraint, method="trust-constr", options={'gtol': 1e-12, 'xtol': tolerance, 'verbose': 3})
+    tau_min = res.x
+    # print if the convex combination is positive semi-definite
+    print("Positive definite: %s" %is_pos_def(ellipsoid(tau_min)[1]))
+    print("Tau min: ", tau_min)
+    # calculates and returns the minimal parametrized ellipsoid
+    new_mu, new_Sigma  = ellipsoid(tau_min)
+    return round_matrix_to_rational(new_mu), round_matrix_to_rational(new_Sigma)
+
 def hyperplane_intersection(mu, Sigma, c, gamma, normalize=False):
     """
     Ellipsoid/Hyperplane intersection method from https://people.eecs.berkeley.edu/~akurzhan/ellipsoids/ET_TechReport_v1.pdf
