@@ -4,7 +4,7 @@ from numpy.linalg import svd, det
 from numpy import array, trace, log, diag
 from numpy import sqrt as np_sqrt
 from scipy.linalg import sqrtm
-from scipy.optimize import bisect, brenth, minimize_scalar
+from scipy.optimize import bisect, brenth, minimize_scalar, LinearConstraint, minimize
 import numpy as np
 import sys
 from fpylll import *
