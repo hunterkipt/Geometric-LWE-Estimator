@@ -13,7 +13,7 @@ import matplotlib.lines as mlines
 # Generate random mu and Sigma pairs
 def generate_random_mu_Sigma(dim, num_pairs):
     mu_Sigma_pairs = []
-    mu = np.random.rand(dim)
+    mu = np.random.rand(dim) 
     A = np.random.rand(dim, dim)
     Sigma = np.dot(A, A.transpose())  # Positive semi-definite
     mu_Sigma_pairs.extend([mu, Sigma])
@@ -21,7 +21,7 @@ def generate_random_mu_Sigma(dim, num_pairs):
     print(f"seed: {seed}")
     for i in range(num_pairs-1):
         mu = np.random.rand(dim)  # Random center
-        if seed > 0.9:
+        if seed > 0:
             # Ellipsoid
             A = np.random.rand(dim, dim)
             Sigma = np.dot(A, A.transpose())  # Positive semi-definite
@@ -90,7 +90,7 @@ def plot_hyperboloid(mu, Sigma, label):
 dim = 2
 
 # Number of (mu, Sigma) pairs
-num_pairs = 6
+num_pairs = 2
 
 # Generate random (mu, Sigma) pairs
 mu_Sigma_pairs = generate_random_mu_Sigma(dim, num_pairs)
@@ -99,9 +99,23 @@ mu_Sigma_pairs = generate_random_mu_Sigma(dim, num_pairs)
 # for i in range(0, len(mu_Sigma_pairs), 2):
 #     print(f"mu{i//2}: {mu_Sigma_pairs[i]}")
 #     print(f"Sigma{i//2}: {mu_Sigma_pairs[i+1]}")
+def generate_non_intersecting_ellipsoids(dim):
+    # Generate the first ellipsoid
+    mu1 = np.random.rand(dim)
+    A1 = np.random.rand(dim, dim)
+    Sigma1 = np.dot(A1, A1.transpose())  # Positive semi-definite
 
-# You can then pass these to your function like so:
-new_mu, new_Sigma = ellipsoid_quadratic_froms_intersection(*mu_Sigma_pairs, lb=0.1, tolerance=1e-8)
+    # Generate the second ellipsoid
+    # Ensure it is sufficiently far from the first
+    distance = 10  # Adjust this value to control the separation
+    mu2 = mu1 + np.random.rand(dim) * distance
+    A2 = np.random.rand(dim, dim)
+    Sigma2 = np.dot(A2, A2.transpose())  # Positive semi-definite
+
+    return (mu1, Sigma1), (mu2, Sigma2)
+
+new_mu, new_Sigma = ellipsoid_quadratic_forms_intersection(*mu_Sigma_pairs, tolerance=1e-8)
+# ellipsoid_hyperboloid_intersection(matrix(*mu_Sigma_pairs), tolerance=1e-8)
 print(f"new_mu: {new_mu}")
 print(f"new_Sigma: {new_Sigma}")
 

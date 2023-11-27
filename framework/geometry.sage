@@ -4,7 +4,7 @@ from numpy.linalg import svd, det
 from numpy import array, trace, log, diag
 from numpy import sqrt as np_sqrt
 from scipy.linalg import sqrtm
-from scipy.optimize import bisect, brenth, minimize_scalar
+from scipy.optimize import bisect, brenth, minimize_scalar, LinearConstraint, minimize
 import numpy as np
 import sys
 import random
@@ -609,6 +609,78 @@ def ellipsoid_hyperboloid_intersection(mu1, Sigma1, mu2, Sigma2, tolerance=1.48e
     res = minimize(lambda x: -ln(x['sigma'].det()))
     tau_min = res.x
     
+    # calculates and returns the minimal parametrized ellipsoid
+    ellipsoid = parametrize(tau_min)
+    mu = round_matrix_to_rational(ellipsoid['mu'])
+    Sigma = round_matrix_to_rational(ellipsoid['sigma'])
+    return mu, Sigma
+
+def ellipsoid_quadratic_forms_intersection(*mu_Sigma, tolerance=1.48e-08):
+    # determines the maximum value of the parametrization for which the quadratic form will be PSD
+    LARGE_PENALTY_VALUE = 1e10
+    # Initialize empty lists to store mu's and sigma's
+    mus = []
+    Sigmas = []
+    # Loop through the arguments two at a time
+    for i in range(0, len(mu_Sigma), 2):
+        mu, Sigma = mu_Sigma[i], mu_Sigma[i+1]
+        # Append mu and sigma to their respective lists
+        mus.append(matrix(mu.reshape(-1, 1)))
+        Sigmas.append(matrix(Sigma))
+    n = len(mu_Sigma)//2
+    def parametrize(tau):
+        # calculates the parametrized intersection ellipsoid given the parameter tau
+        # define a function that computes the convex combination of n matrices from Sigma
+        def c_n(Sigma):
+            sum_Sigma = matrix(np.zeros_like(Sigma[0]).tolist())
+            for i in range(n):
+                sum_Sigma += float(tau[i].real) * Sigma[i]
+            return sum_Sigma
+
+        # computes the new mean and variance
+        Sigma_tau = c_n(Sigmas)
+        sum_tau_Sigma_mu = matrix(np.zeros_like(mus[0]).tolist())
+        for i in range(n):
+            sum_tau_Sigma_mu += float(tau[i].real) * Sigmas[i] * mus[i]
+        Sigma_tau_inv = Sigma_tau^-1
+        mu = Sigma_tau_inv * sum_tau_Sigma_mu   # Make sure the shapes are correct
+        v = 0
+        for i in range(n):
+            v += float(tau[i].real) * mus[i].T  * Sigmas[i] * mus[i]
+        # v -= sum_tau_Sigma_mu.T * Sigma_tau * sum_tau_Sigma_mu
+        v -= sum_tau_Sigma_mu.T * Sigma_tau_inv * sum_tau_Sigma_mu
+        Sigma = (1 - scal(v))^-1 * Sigma_tau
+
+        return {
+            'mu': mu,
+            'sigma': Sigma,
+            'v': v
+        }
+    
+    def determinant(tau):
+        # calculates the determinant of the parametrized ellipsoid
+        Sigma = parametrize(tau)['sigma']
+        if not is_pos_def(Sigma):
+        # If Sigma is not positive semidefinite, return a large penalty value
+            return LARGE_PENALTY_VALUE
+        return -ln(Sigma.det())
+    
+    def is_pos_def(x):
+        return np.all(np.linalg.eigvals(x) > 0)
+    
+    x0 = np.zeros(n)
+    x0[0] = 1
+    bounds = [(0, 1) for _ in range(n)]
+    linear_constraint = LinearConstraint(np.ones(n), 1, 1)
+    
+    res = minimize(lambda x: 1-parametrize(x)['v'], x0, bounds=bounds, constraints=linear_constraint, method="trust-constr", options={'gtol': 1e-12, 'xtol': tolerance, 'verbose': 3})
+    if res.fun < tolerance:
+        return None # there is no intersection
+    
+    # determines the value of tau which minimizes the determinant
+    res = minimize(determinant, x0, bounds=bounds, constraints=linear_constraint, method="trust-constr", options={'gtol': 1e-12, 'xtol': tolerance, 'verbose': 3})
+    tau_min = res.x
+
     # calculates and returns the minimal parametrized ellipsoid
     ellipsoid = parametrize(tau_min)
     mu = round_matrix_to_rational(ellipsoid['mu'])
