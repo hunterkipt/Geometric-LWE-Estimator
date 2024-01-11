@@ -1,6 +1,11 @@
 import numpy as np
 from sage.rings.generic import ProductTree
 
+load("../framework/LWE.sage")
+load("../framework/utils.sage")
+
+q = 3329
+
 def bit_reverse_7(x):
     return int(bin(x)[2:].zfill(7)[::-1], 2)
 
@@ -92,7 +97,6 @@ def load_ntt_data(filename):
 
     data = np.load(filename, allow_pickle=True)
 
-    print(data.keys())
     skpv = data['skpv']
 
     bhat = data['bhat']
@@ -106,7 +110,6 @@ def load_ntt_data(filename):
     U_i64 = U_64.inverse().T
 
     U_E = U_i64.matrix_from_columns([2*i for i in range(32)])
-
 
     V = gen_full_ntt_matrix()
 
@@ -123,7 +126,6 @@ def load_ntt_data(filename):
     # (shat ** chat) * Ui - s * V = 0
     # (shat ** chat || s) * [ Ui // V ] = 0
     # (shat ** chat || s) * [ 1 // MAT ] = 0
-    # [shat ** chat] + s * MAT = 0
 
     secret_ntt = [F(i) for i in skpv[0]]
 
@@ -145,10 +147,7 @@ def load_ntt_data(filename):
 
     mul_odd = [mul[2 * i + 1] for i in range(32)]
 
-
-
-
-    # ntt_coeff_dist = data['ntt_coeff_dist'][()]
+    matrix(F, 1, 32, mul_even) + matrix(F, 1, 160, mul_odd + secret_even_poly) * mat # all zeroes
 
     ntt_coeff_dist = data['ntt_coeff_dist'][()]
 
@@ -162,13 +161,38 @@ def load_ntt_data(filename):
         means.append(coeff_mean)
         variances.append(variance)
 
-    print(variances)
+    variances = variances[:64]
+    means = means[:64]
 
-    print(len(variances))
+    variances_odd = [variances[2*i] for i in range(32)]
+    variances_even = [variances[2*i + 1] for i in range(32)]
 
-    print(means)
+    means_odd = [means[2*i] for i in range(32)]
+    means_even = [means[2*i + 1] for i in range(32)]
 
-    print(len(means))
+    D_s = build_centered_binomial_law(4)
+
+    m_s, v_s = average_variance(D_s)
+
+    variance_s = variances_odd + [v_s for i in range(128)]
+
+    mean_s = means_odd + [m_s for i in range(128)]
+
+    print(pairwise_mult(secret_ntt, ct_ntt)[:64])
+    print()
+    print(variance_s)
+    print(mean_s)
+    print()
+    print(variances_even)
+    print(means_even)
+
+    q = 3329
+
+    lwe = LWE(160, q, 32, None, None, 1, matrix(QQ, mat).T, matrix(QQ, [0 for i in range(32)]), Sigma_s = variance_s, Sigma_e = variances_even, mean_s = mean_s, mean_e = means_even)
+
+    ebdd = lwe.embed_into_EBDD()
+
+    ebdd.estimate_attack()
 
 
 if __name__ == "__main__":

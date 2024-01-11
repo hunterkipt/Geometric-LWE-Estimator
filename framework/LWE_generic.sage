@@ -101,8 +101,11 @@ class LWE_generic:
         mean_s = None
         mean_e = None
 
-        _, s_e = average_variance(self.D_e)
-        _, s_s = average_variance(self.D_s)
+        if self.D_e is not None:
+            _, s_e = average_variance(self.D_e)
+
+        if self.D_s is not None:
+            _, s_s = average_variance(self.D_s)
 
         if s_e == None:
             s_e = 1
@@ -124,8 +127,11 @@ class LWE_generic:
             mean_e = vec(self.mean_e)
 
         # Ensure A matrix is centered for ellipsoidal embedding
+
+        q = self.q
+
         self.A = self.A.apply_map(recenter)
-        
+
         # Compute modulus residual vector, c
         self.b = self.b.apply_map(recenter)
 

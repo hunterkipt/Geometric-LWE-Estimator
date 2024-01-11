@@ -409,7 +409,6 @@ def recenter(elt):
         return elt - q
     return elt
 
-
 def get_distribution_from_table(table, multiplicative_factor):
     eta = len(table)
     D_s = {}
