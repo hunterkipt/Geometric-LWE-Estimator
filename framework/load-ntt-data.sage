@@ -152,11 +152,14 @@ def load_ntt_data(filename):
     ntt_coeff_dist = data['ntt_coeff_dist'][()]
 
     means, variances = [], []
+
+    sum_v = 0
     for i in range(256):
         coeff, confidence = max(ntt_coeff_dist[i][0].items(), key=lambda x: x[1])
         coeff_mean = np.average(list(ntt_coeff_dist[i][0].keys()), weights=list(ntt_coeff_dist[i][0].values()))
         variance = 0
         for k, v in ntt_coeff_dist[i][0].items():
+            sum_v += v
             variance += (k - coeff_mean)**2 * v
         means.append(coeff_mean)
         variances.append(variance)
@@ -164,11 +167,21 @@ def load_ntt_data(filename):
     variances = variances[:64]
     means = means[:64]
 
-    variances_odd = [variances[2*i] for i in range(32)]
-    variances_even = [variances[2*i + 1] for i in range(32)]
+    # means = [int((i * 169) % 3329) for i in means]
 
-    means_odd = [means[2*i] for i in range(32)]
-    means_even = [means[2*i + 1] for i in range(32)]
+    variances_odd = [variances[2*i + 1] for i in range(32)]
+    variances_even = [variances[2*i] for i in range(32)]
+
+    means_even = [means[2*i] for i in range(32)]
+    means_odd = [means[2*i + 1] for i in range(32)]
+
+    secret_ciphertext_product = [QQ(i) for i in pairwise_mult(secret_ntt, ct_ntt)[:64]]
+
+    secret_s = [secret_ciphertext_product[2*i + 1] for i in range(32)] + secret_even_poly
+    secret_e = [secret_ciphertext_product[2*i] for i in range(32)]
+
+    means_even = [secret_ciphertext_product[2*i] for i in range(32)]            # COMMENT THESE OUT
+    means_odd = [secret_ciphertext_product[2*i + 1] for i in range(32)]         # COMMENT THESE OUT
 
     D_s = build_centered_binomial_law(4)
 
@@ -188,11 +201,27 @@ def load_ntt_data(filename):
 
     q = 3329
 
-    lwe = LWE(160, q, 32, None, None, 1, matrix(QQ, mat).T, matrix(QQ, [0 for i in range(32)]), Sigma_s = variance_s, Sigma_e = variances_even, mean_s = mean_s, mean_e = means_even)
+    print((matrix(QQ, secret_s) * matrix(QQ, mat) + matrix(QQ, secret_e)) % 3329)
+
+    lwe = LWE(160, q, 32, None, None, 1, matrix(QQ, mat).T, matrix(QQ, [0 for i in range(32)]), Sigma_s = variance_s, Sigma_e = variances_even, mean_s = mean_s, mean_e = means_even, s = matrix(QQ, secret_s), e_vec = matrix(QQ, secret_e))
 
     ebdd = lwe.embed_into_EBDD()
 
     ebdd.estimate_attack()
+
+    for i in range(32):
+        prod_vec = [0] * 192
+        prod_vec[i] = 1
+        value = means_even[i]
+        ebdd.integrate_perfect_hint(*ebdd.convert_hint_e_to_c(vec(prod_vec), value))
+
+    ebdd.apply_perfect_hints()
+
+    ebdd.estimate_attack()
+
+
+    ebdd.attack()
+
 
 
 if __name__ == "__main__":
