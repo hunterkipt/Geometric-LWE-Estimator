@@ -167,7 +167,8 @@ def load_ntt_data(filename):
     variances = variances[:64]
     means = means[:64]
 
-    # means = [int((i * 169) % 3329) for i in means]
+    #means = [round((i * (2^16))) % 3329 for i in means]
+    print(f'{means = }')
 
     variances_odd = [variances[2*i + 1] for i in range(32)]
     variances_even = [variances[2*i] for i in range(32)]
@@ -175,13 +176,13 @@ def load_ntt_data(filename):
     means_even = [means[2*i] for i in range(32)]
     means_odd = [means[2*i + 1] for i in range(32)]
 
-    secret_ciphertext_product = [QQ(i) for i in pairwise_mult(secret_ntt, ct_ntt)[:64]]
+    secret_ciphertext_product = [QQ((i*169) % 3329) for i in pairwise_mult(secret_ntt, ct_ntt)[:64]]
 
     secret_s = [secret_ciphertext_product[2*i + 1] for i in range(32)] + secret_even_poly
     secret_e = [secret_ciphertext_product[2*i] for i in range(32)]
 
-    means_even = [secret_ciphertext_product[2*i] for i in range(32)]            # COMMENT THESE OUT
-    means_odd = [secret_ciphertext_product[2*i + 1] for i in range(32)]         # COMMENT THESE OUT
+    #means_even = [secret_ciphertext_product[2*i] for i in range(32)]            # COMMENT THESE OUT
+    #means_odd = [secret_ciphertext_product[2*i + 1] for i in range(32)]         # COMMENT THESE OUT
 
     D_s = build_centered_binomial_law(4)
 
@@ -191,7 +192,8 @@ def load_ntt_data(filename):
 
     mean_s = means_odd + [m_s for i in range(128)]
 
-    print(pairwise_mult(secret_ntt, ct_ntt)[:64])
+    #print(pairwise_mult(secret_ntt, ct_ntt)[:64])
+    print(f'{secret_ciphertext_product = }')
     print()
     print(variance_s)
     print(mean_s)
@@ -225,7 +227,7 @@ def load_ntt_data(filename):
 
 
 if __name__ == "__main__":
-    load_ntt_data("../kyber_trace_results/results_exp_2_[(0,)]_1.1_1.npz")
+    load_ntt_data("../kyber_project/results/results_exp_2_[(0,)]_1.2_1.npz")
 
 #     F = GF(3329)
 #     P = PolynomialRing(F, 'z')
