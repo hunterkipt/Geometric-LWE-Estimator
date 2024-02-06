@@ -83,7 +83,7 @@ def gen_full_ntt_matrix():
 def convert_mat_to_lwe(mat):
     F = GF(3329)
     top = mat[:64,:]
-    bottom = mat[64:,:]
+    bottom = 169 * mat[64:,:]  # Apply Montgomery form to s
 
     rows = top.rows()
 
@@ -94,46 +94,42 @@ def convert_mat_to_lwe(mat):
 def load_ntt_data(filename):
 
     F = GF(3329)
+    q = 3329
 
     data = np.load(filename, allow_pickle=True)
 
+    # Extract Secret Key and ciphertext from data
     skpv = data['skpv']
-
     bhat = data['bhat']
 
+    # Use ciphertext and NTT to generate 'LWE' A matrix
     ct_ntt = [F(i) for i in bhat[0]]
 
+    # U -> representive of ciphertext as a matrix multiplication
     U = gen_u_matrix(ct_ntt)
-
     U_64 = U.submatrix(0, 0, 64, 64)
-
     U_i64 = U_64.inverse().T
 
     U_E = U_i64.matrix_from_columns([2*i for i in range(32)])
 
+    # V -> NTT matrix 
     V = gen_full_ntt_matrix()
-
     V_half = gen_half_ntt_matrix()
-
     V_64 = V_half.T.submatrix(0, 0, 128, 32)
 
     block = block_matrix(F, 2, 1, [[-U_E], [V_64]])
 
     mat = block.T.rref().T # submatrix
-
     mat = convert_mat_to_lwe(mat)
-
     # (shat ** chat) * Ui - s * V = 0
     # (shat ** chat || s) * [ Ui // V ] = 0
     # (shat ** chat || s) * [ 1 // MAT ] = 0
 
     secret_ntt = [F(i) for i in skpv[0]]
-
-
     secret_ntt_even = [secret_ntt[2*i] for i in range(128)]
 
+    # Apply inverse NTT to get secret key polynomial
     secret_poly = list(list(matrix(F, 1, 256, secret_ntt) * V.T.inverse())[0])
-
     secret_even_poly = list(list(matrix(F, 1, 128, secret_ntt_even) * V_half.T.inverse())[0])
 
 
@@ -141,16 +137,15 @@ def load_ntt_data(filename):
 
     # zzero = matrix(F, 1, 64, pairwise_mult(secret_ntt, ct_ntt)[:64]) + matrix(F, 1, 256, secret_poly) * mat # = vector of zeroes!!
 
+    # Get the multiplication to match with the acquired data
     mul = pairwise_mult(secret_ntt, ct_ntt)[:64]
-
     mul_even = [mul[2 * i] for i in range(32)]
-
     mul_odd = [mul[2 * i + 1] for i in range(32)]
 
-    matrix(F, 1, 32, mul_even) + matrix(F, 1, 160, mul_odd + secret_even_poly) * mat # all zeroes
-
+    # print(matrix(F, 1, 32, mul_even) + matrix(F, 1, 160, mul_odd + secret_even_poly) * mat) # all zeroes
+    
+    # Process the data into means and variances
     ntt_coeff_dist = data['ntt_coeff_dist'][()]
-
     means, variances = [], []
 
     sum_v = 0
@@ -167,8 +162,8 @@ def load_ntt_data(filename):
     variances = variances[:64]
     means = means[:64]
 
-    #means = [round((i * (2^16))) % 3329 for i in means]
-    print(f'{means = }')
+    # means = [round((i * (2^16))) % 3329 for i in means]
+    # print(f'{means = }')
 
     variances_odd = [variances[2*i + 1] for i in range(32)]
     variances_even = [variances[2*i] for i in range(32)]
@@ -177,7 +172,10 @@ def load_ntt_data(filename):
     means_odd = [means[2*i + 1] for i in range(32)]
 
     secret_ciphertext_product = [QQ((i*169) % 3329) for i in pairwise_mult(secret_ntt, ct_ntt)[:64]]
-
+    # secret_s = mul_odd + secret_even_poly
+    # secret_e = mul_even
+    
+    # secret_even_poly = [QQ((i*169) % 3329) for i in secret_even_poly] 
     secret_s = [secret_ciphertext_product[2*i + 1] for i in range(32)] + secret_even_poly
     secret_e = [secret_ciphertext_product[2*i] for i in range(32)]
 
@@ -191,43 +189,83 @@ def load_ntt_data(filename):
     variance_s = variances_odd + [v_s for i in range(128)]
 
     mean_s = means_odd + [m_s for i in range(128)]
-
+    # Cast everything to a rational
+    mean_s = [round(i) for i in mean_s]
+    means_even = [round(i) for i in means_even]
+    variance_s = [QQ(i) for i in variance_s]
+    variances_even = [QQ(i) for i in variances_even]
     #print(pairwise_mult(secret_ntt, ct_ntt)[:64])
-    print(f'{secret_ciphertext_product = }')
-    print()
-    print(variance_s)
-    print(mean_s)
-    print()
-    print(variances_even)
-    print(means_even)
-
-    q = 3329
-
+    # print(f'{secret_ciphertext_product = }')
+    # print()
+    # print(variance_s)
+    print(f"s     : {matrix(QQ, secret_s).apply_map(recenter)}")
+    print(f"mean_s: {mean_s}")
+    # print()
+    print(f"e     : {matrix(QQ, secret_e).apply_map(recenter)}")
+    print(f"mean_e: {means_even}")
+   
     print((matrix(QQ, secret_s) * matrix(QQ, mat) + matrix(QQ, secret_e)) % 3329)
 
-    lwe = LWE(160, q, 32, None, None, 1, matrix(QQ, mat).T, matrix(QQ, [0 for i in range(32)]), Sigma_s = variance_s, Sigma_e = variances_even, mean_s = mean_s, mean_e = means_even, s = matrix(QQ, secret_s), e_vec = matrix(QQ, secret_e))
+    lwe = LWE(
+        n=160, 
+        q=q,
+        m=32, 
+        D_e=None, 
+        D_s=None,
+        verbosity=1, 
+        A=matrix(QQ, mat).T, 
+        b=matrix(QQ, [0 for i in range(32)]),
+        Sigma_s=variance_s,
+        Sigma_e=variances_even,
+        mean_s=mean_s,
+        mean_e=means_even,
+        s=matrix(QQ, secret_s).apply_map(recenter),
+        e_vec=matrix(QQ, secret_e).apply_map(recenter)
+    )
+    lwe = LWE(
+        n=160, 
+        q=q,
+        m=0, 
+        D_e=None, 
+        D_s=None,
+        verbosity=1, 
+        A=matrix(QQ, mat).T, 
+        b=matrix(QQ, [0 for i in range(32)]),
+        Sigma_s=variance_s,
+        Sigma_e=[],
+        mean_s=mean_s,
+        mean_e=[],
+        s=matrix(QQ, secret_s).apply_map(recenter),
+        e_vec=matrix(QQ, []).apply_map(recenter)
+    )
 
-    ebdd = lwe.embed_into_EBDD()
-
-    ebdd.estimate_attack()
+    # ebdd = lwe.embed_into_EBDD()
+    dbdd = lwe.embed_into_DBDD()
+    print(dbdd.S.parent(), dbdd.B.parent(), dbdd.mu.parent())
+    print(dbdd.volumes())
+    # ebdd.estimate_attack()
+    dbdd.estimate_attack()
 
     for i in range(32):
         prod_vec = [0] * 192
         prod_vec[i] = 1
         value = means_even[i]
-        ebdd.integrate_perfect_hint(*ebdd.convert_hint_e_to_c(vec(prod_vec), value))
+        dbdd.integrate_perfect_hint(vec(prod_vec), int(round(value)))
+        # ebdd.integrate_perfect_hint(*ebdd.convert_hint_e_to_c(vec(prod_vec), value))
 
-    ebdd.apply_perfect_hints()
+    # ebdd.apply_perfect_hints()
 
-    ebdd.estimate_attack()
+    # ebdd.estimate_attack()
+    dbdd.estimate_attack()
+    print(dbdd.volumes())
 
-
-    ebdd.attack()
+    # ebdd.attack()
+    dbdd.attack()
 
 
 
 if __name__ == "__main__":
-    load_ntt_data("../kyber_project/results/results_exp_2_[(0,)]_1.2_1.npz")
+    load_ntt_data("../ktrace-cca-data/results_exp_2_[(0,)]_1.2_1.npz")
 
 #     F = GF(3329)
 #     P = PolynomialRing(F, 'z')
