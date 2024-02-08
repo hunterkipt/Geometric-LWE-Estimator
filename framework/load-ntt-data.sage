@@ -192,8 +192,12 @@ def load_ntt_data(filename):
     # Cast everything to a rational
     mean_s = [round(i) for i in mean_s]
     means_even = [round(i) for i in means_even]
-    variance_s = [QQ(i) for i in variance_s]
-    variances_even = [QQ(i) for i in variances_even]
+
+    variance_s = [QQ(i) if i > (1/1000) else QQ(1/1000) for i in variance_s]
+    variances_even = [QQ(i) if i > (1/1000) else QQ(1/1000) for i in variances_even]
+
+    variances_list = variances_even + variance_s
+    
     #print(pairwise_mult(secret_ntt, ct_ntt)[:64])
     # print(f'{secret_ciphertext_product = }')
     # print()
@@ -222,22 +226,6 @@ def load_ntt_data(filename):
         s=matrix(QQ, secret_s).apply_map(recenter),
         e_vec=matrix(QQ, secret_e).apply_map(recenter)
     )
-    lwe = LWE(
-        n=160, 
-        q=q,
-        m=0, 
-        D_e=None, 
-        D_s=None,
-        verbosity=1, 
-        A=matrix(QQ, mat).T, 
-        b=matrix(QQ, [0 for i in range(32)]),
-        Sigma_s=variance_s,
-        Sigma_e=[],
-        mean_s=mean_s,
-        mean_e=[],
-        s=matrix(QQ, secret_s).apply_map(recenter),
-        e_vec=matrix(QQ, []).apply_map(recenter)
-    )
 
     # ebdd = lwe.embed_into_EBDD()
     dbdd = lwe.embed_into_DBDD()
@@ -245,11 +233,14 @@ def load_ntt_data(filename):
     print(dbdd.volumes())
     # ebdd.estimate_attack()
     dbdd.estimate_attack()
+    
+    for i, var in enumerate(variances_list):
+        if var > 1/1000:
+            continue
 
-    for i in range(32):
         prod_vec = [0] * 192
         prod_vec[i] = 1
-        value = means_even[i]
+        value = (means_even+mean_s)[i]
         dbdd.integrate_perfect_hint(vec(prod_vec), int(round(value)))
         # ebdd.integrate_perfect_hint(*ebdd.convert_hint_e_to_c(vec(prod_vec), value))
 
@@ -265,7 +256,7 @@ def load_ntt_data(filename):
 
 
 if __name__ == "__main__":
-    load_ntt_data("../ktrace-cca-data/results_exp_2_[(0,)]_1.2_1.npz")
+    load_ntt_data("../ktrace-cca-data/results_exp_2_[(0,)]_1.2_5.npz")
 
 #     F = GF(3329)
 #     P = PolynomialRing(F, 'z')
