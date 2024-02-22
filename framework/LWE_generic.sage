@@ -37,10 +37,20 @@ class LWE_generic:
 
 
         # define the mean and sigma of the instance
-        mu_e, s_e = average_variance(self.D_e)
-        mu_s, s_s = average_variance(self.D_s)
-        mu = vec(self.m * [mu_e] + self.n * [mu_s] + [1])
-        S = diagonal_matrix(self.m * [s_e] + self.n * [s_s] + [0])
+        if self.mean_e or self.mean_s:
+            mu = vec(self.mean_e + self.mean_s + [1])
+            mu = matrix(QQ, mu)
+
+        else:
+            mu_e, s_e = average_variance(self.D_e)
+            mu_s, s_s = average_variance(self.D_s)
+            mu = vec(self.m * [mu_e] + self.n * [mu_s] + [1])
+
+        if self.Sigma_e or self.Sigma_s:
+            S = diagonal_matrix(QQ, self.Sigma_e + self.Sigma_s + [0])
+
+        else:
+            S = diagonal_matrix(self.m * [s_e] + self.n * [s_s] + [0])
 
         # Define lattice bases from LWE parameters
         B = build_LWE_lattice(-self.A, self.q) # primal
@@ -49,7 +59,7 @@ class LWE_generic:
         # A_cen = A.apply_map(recenter) #Make sure here A is centered.
         b_cen = self.b.apply_map(recenter)
 
-        tar = concatenate([b_cen, [0] * n])
+        tar = concatenate([b_cen, [0] * self.n])
         B = kannan_embedding(B, tar)
         D = kannan_embedding(D, concatenate([-b_cen/self.q, [0] * self.n])).T
 
@@ -59,7 +69,7 @@ class LWE_generic:
         else:
             u = concatenate([self.e_vec, self.s, [1]])
 
-        return dbdd_class(B, S, mu, self, u, verbosity=self.verbosity, D=D, Bvol=m*log(q))
+        return dbdd_class(B, S, mu, self, u, verbosity=self.verbosity, D=D, Bvol=self.m*log(self.q))
 
     def embed_into_DBDD_optimized(self):
         """
