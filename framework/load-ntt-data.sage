@@ -182,7 +182,7 @@ def load_ntt_data(filename):
     #means_even = [secret_ciphertext_product[2*i] for i in range(32)]            # COMMENT THESE OUT
     #means_odd = [secret_ciphertext_product[2*i + 1] for i in range(32)]         # COMMENT THESE OUT
 
-    D_s = build_centered_binomial_law(4)
+    D_s = build_centered_binomial_law(2)
 
     m_s, v_s = average_variance(D_s)
 
@@ -193,11 +193,11 @@ def load_ntt_data(filename):
     mean_s = [round(i) for i in mean_s]
     means_even = [round(i) for i in means_even]
 
-    variance_s = [QQ(i) if i > (1/1000) else QQ(1/1000) for i in variance_s]
-    variances_even = [QQ(i) if i > (1/1000) else QQ(1/1000) for i in variances_even]
+    variance_s = [QQ(i) if i > (1/100) else QQ(1/100) for i in variance_s]
+    variances_even = [QQ(i) if i > (1/100) else QQ(1/100) for i in variances_even]
 
     variances_list = variances_even + variance_s
-    
+    print(variances_list) 
     #print(pairwise_mult(secret_ntt, ct_ntt)[:64])
     # print(f'{secret_ciphertext_product = }')
     # print()
@@ -226,29 +226,35 @@ def load_ntt_data(filename):
         s=matrix(QQ, secret_s).apply_map(recenter),
         e_vec=matrix(QQ, secret_e).apply_map(recenter)
     )
-
+   
     # ebdd = lwe.embed_into_EBDD()
     dbdd = lwe.embed_into_DBDD()
-    print(dbdd.S.parent(), dbdd.B.parent(), dbdd.mu.parent())
-    print(dbdd.volumes())
+    # print(dbdd.S.parent(), dbdd.B.parent(), dbdd.mu.parent())
+    # print(dbdd.volumes())
+    # print(ebdd.volumes())
     # ebdd.estimate_attack()
     dbdd.estimate_attack()
+    print(dbdd.ellip_norm())
     
     for i, var in enumerate(variances_list):
-        if var > 1/1000:
+        if var > 1/100:
             continue
 
         prod_vec = [0] * 192
         prod_vec[i] = 1
         value = (means_even+mean_s)[i]
+
         dbdd.integrate_perfect_hint(vec(prod_vec), int(round(value)))
         # ebdd.integrate_perfect_hint(*ebdd.convert_hint_e_to_c(vec(prod_vec), value))
 
     # ebdd.apply_perfect_hints()
 
+    # print(dbdd.mu)
+    # print(dbdd.u)
     # ebdd.estimate_attack()
     dbdd.estimate_attack()
-    print(dbdd.volumes())
+    print(dbdd.ellip_norm())
+    # print(dbdd.volumes())
 
     # ebdd.attack()
     dbdd.attack()
@@ -256,7 +262,7 @@ def load_ntt_data(filename):
 
 
 if __name__ == "__main__":
-    load_ntt_data("../ktrace-cca-data/results_exp_2_[(0,)]_1.2_5.npz")
+    load_ntt_data("../ktrace-cca-data/results_exp_2_[(0,)]_0.8_3.npz")
 
 #     F = GF(3329)
 #     P = PolynomialRing(F, 'z')

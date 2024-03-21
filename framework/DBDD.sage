@@ -94,7 +94,6 @@ class DBDD(DBDD_generic):
         # assert V.ncols() == self.dim()
         VS = V * self.S
         den = scal(VS * V.T)
-
         if den == 0:
             raise RejectedHint("Redundant hint")
 
@@ -103,6 +102,7 @@ class DBDD(DBDD_generic):
         num = self.mu * V.T
         self.mu -= (num / den) * VS
         num = VS.T * VS
+        print(num)
         self.S -= num / den
 
     @not_after_projections
@@ -429,6 +429,8 @@ class DBDD(DBDD_generic):
         except AssertionError:
             inv = DBDD_S.inverse()
 
+        except ZeroDivisionError:
+            inv = degen_inverse(self.S + self.mu.T*self.mu)
         norm = scal(u * inv * u.T)
         return RR(norm)
 
@@ -492,6 +494,8 @@ class DBDD(DBDD_generic):
                 bkz(par)
                 bkz.lll_obj()
 
+            print("Secret key:")
+            print(self.u)
             # Tries all 3 first vectors because of 2 NTRU parasite vectors
             for j in range(3):
                 # Recover the tentative solution,
@@ -499,7 +503,8 @@ class DBDD(DBDD_generic):
                 v = vec(bkz.A[j])
                 v = u_den * v * L / denom
                 solution = matrix(ZZ, v.apply_map(round)) / u_den
-
+                print(f"Solution {j}:")
+                print(solution)
                 if not self.check_solution(solution):
                     continue
 
