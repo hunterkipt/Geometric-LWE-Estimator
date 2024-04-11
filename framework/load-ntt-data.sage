@@ -80,76 +80,291 @@ def gen_full_ntt_matrix():
     return M
 
 
+# Get rid of rows which correspond to the `e` vector in a matrix to put it into a proper LWE form
 def convert_mat_to_lwe(mat):
     F = GF(3329)
-    top = mat[:64,:]
-    bottom = 169 * mat[64:,:]  # Apply Montgomery form to s
+    top = mat[:256,:]
+    bottom = 169 * mat[256:,:]  # Apply Montgomery form to s
 
     rows = top.rows()
 
-    odds = matrix(F, 32, 32, [rows[2 * i + 1] for i in range(32)])
+    non_identity_rows = matrix(F, 128, 128, [rows[2 * i + 1] for i in range(128)]) # extract all non id rows
 
-    return block_matrix(F, 2, 1, [[odds], [bottom]])
+    return block_matrix(F, 2, 1, [[non_identity_rows], [bottom]]) # combine all the rows which don't correspond to an identity into one LWE matrix
 
-def load_ntt_data(filename):
 
+def generate_ntt_instance(ciphertext_ntt, secret_ntt=None):
     F = GF(3329)
     q = 3329
 
+    print("Starting generation of even and odd LWE matrices for the NTT repr.")
+
+    ct_ntt = [F(i) for i in ciphertext_ntt[0]]
+
+    U = gen_u_matrix(ct_ntt)
+
+    # Inverse. In the first 64 case, this will be the inverse of U but with blocks only for the first 64:
+    # [ a b ....... ]
+    # [ c d ....... ]
+    # [ ... a b ... ]
+    # [ ... c d ... ]
+    # ...
+    U_i = U.pseudoinverse().T
+
+    # The full matrix for each of the even and the odd parts of the secret polynomial
+    # Looks like this:
+    # [ X . . . . ]
+    # [ X . . . . ]
+    # [ . X . . . ]
+    # [ . X . . . ]
+    # [ . . X . . ]
+    # [ . . X . . ]
+    # ...
+    # In the first 64 case, only the first 32 columns (64 rows will have values.
+    U_E_full = U_i.matrix_from_columns([2*i for i in range(U_i.dimensions()[1] // 2)]) 
+    U_O_full = U_i.matrix_from_columns([2*i + 1 for i in range(U_i.dimensions()[1] // 2)])
+
+
+    # Pi_(UE) and Pi_(UO)
+    # In the first 64 case, will be the 32 dim identity and 0 everywhere else for each one
+    # [ 1  ..... ]
+    # [ . 1 .... ]
+    # [ ... 1 .. ]
+    # ...
+    # Note that these should be the same - either a U block is 0 or not.
+    # Therefore, the projection at a single point is determined by that block, which is identical in both.
+
+    proj_U_E = U_E_full.pseudoinverse() * U_E_full
+    proj_U_O = U_O_full.pseudoinverse() * U_O_full
+
+    # NTT matrix for the NTT transformation in the Kyber field.
+    V = gen_full_ntt_matrix() 
+
+    # Half NTT for evens / odds (due to the structure of the field)
+    V_half = gen_half_ntt_matrix()
+
+    # Projecting the NTT on the coordinates we have
+    # In the first 64 case, we will be selecting the first 32 columns of V_half
+    V_proj_E = V_half.T * proj_U_E.T
+    V_proj_O = V_half.T * proj_U_O.T
+
+    # Generate the block matrices that correspond with the instance.
+    # Specifically, we know that 
+    # (ntt(s * ct) || s_E) * [ [-U_E], [V_proj_E] ] = ntt(s * ct) * (-U_E) + s_E * V_proj_E
+    # = -ntt(s_E) + ntt(s_E) = 0
+    block_E = block_matrix(F, 2, 1, [[-U_E_full], [V_proj_E]])
+    block_O = block_matrix(F, 2, 1, [[-U_O_full], [V_proj_O]])
+
+    # Row reducing the matrix to get a set of 1s at the top -- this allows us to convert this into an LWE instance.
+    # Here, we now get something like following:
+    # [ 1 .......... ]
+    # [ a .......... ]
+    # [ . 1 ........ ]
+    # [ . b ........ ]
+    # [ . . (keep) . ]
+    # [ . . (going). ]
+    # [ ------------ ]
+    # [ REDUCED MATR ]
+    # [ REDUCED MATR ]
+    # [ ............ ]
+    mat_E = block_E.T.rref().T
+    mat_O = block_O.T.rref().T
+
+    # Extracts out the "1" and converts the bottom part to Montgomery form.
+    # This gives us a matrix of the form 
+
+    # [ a' .......... ]
+    # [ . b' ........ ]
+    # [ . . (keep) .. ]
+    # [ . . (going).. ]
+    # [ ------------- ]
+    # [ RED MONT MATR ]
+    # [ RED MONT MATR ]
+    # [ RED MONT MATR ]
+
+    # By extracting out the 1s, we can combine them to create an "e" term for LWE.
+    # Therefore, we now have that ntt(s * ct)_E + [Mat * (ntt(s * ct)_O || s_E)] = 0
+    # This is an LWE instance (heuristically, doesn't exactly meet assumptions).
+    mat_E = convert_mat_to_lwe(mat_E)
+    mat_O = convert_mat_to_lwe(mat_O)
+
+    out_lwe_s_E = None
+    out_lwe_e_E = None
+    out_lwe_s_O = None
+    out_lwe_e_O = None
+
+    # Assert that the LWE instance functions properly.
+    if secret_ntt is not None:
+
+        print("Checking validity...")
+
+        s_ntt = [F(i) for i in secret_ntt[0]]
+
+        # Take the evens / odds of the secret.
+        s_ntt_E = [s_ntt[2*i] for i in range(128)]
+        s_ntt_O = [s_ntt[2*i + 1] for i in range(128)]
+
+
+        # iNTT the Secret
+        s_E = list(list(matrix(F, 1, 128, s_ntt_E) * V_half.T.inverse())[0])
+        s_O = list(list(matrix(F, 1, 128, s_ntt_O) * V_half.T.inverse())[0])
+
+        # Inverse montgomery the secret
+        prod = [QQ((i*169) % 3329) for i in pairwise_mult(s_ntt, ct_ntt)]
+
+
+        # Split the product into two parts -- this is because we extracted out the 'e' part into the error term.
+        prod_part_e = [prod[2*i] for i in range(128)]
+        prod_part_s = [prod[2*i + 1] for i in range(128)]
+
+        # Check the output of the LWE computation.
+        out_lwe_s_E = matrix(F, 1, 256, prod_part_s + s_E)
+        out_lwe_e_E = matrix(F, 1, 128, prod_part_e)
+        output_e = out_lwe_e_E + out_lwe_s_E * mat_E
+
+        out_lwe_s_O = matrix(F, 1, 256, prod_part_s + s_O)
+        out_lwe_e_O = matrix(F, 1, 128, prod_part_e)
+        output_o = out_lwe_e_O + out_lwe_s_O * mat_O
+
+        for i in output_e[0]:
+            assert i == 0
+
+        for j in output_o[0]:
+            assert j == 0
+
+        print("Valid!")
+
+    print("Finished generation. ")
+
+    return ((mat_E, out_lwe_s_E, out_lwe_e_E), (mat_O, out_lwe_s_O, out_lwe_e_O))
+
+def embed_instance_into_dbdd(ciphertext_ntt, v_s_E, m_s_E, v_e_E, m_e_E, v_s_O, m_s_O, v_e_O, m_e_O, secret_ntt=None, column_slicing=False, row_slicing=False):
+
+    print("Embedding into DBDD...")
+
+    # Construct NTT -> LWE matrices
+    (mat_E, out_lwe_s_E, out_lwe_e_E), (mat_O, out_lwe_s_O, out_lwe_e_O) = generate_ntt_instance(ciphertext_ntt, secret_ntt=secret_ntt)
+
+    # Embed into LWE
+
+    s_E = None
+    e_E = None
+    s_O = None
+    e_O = None
+
+    if (out_lwe_s_E is not None):
+        s_E = matrix(QQ, out_lwe_s_E).apply_map(recenter)
+    if (out_lwe_e_E is not None):
+        e_E = matrix(QQ, out_lwe_e_E).apply_map(recenter)
+
+    if (out_lwe_s_O is not None):
+        s_O = matrix(QQ, out_lwe_s_O).apply_map(recenter)
+    if (out_lwe_e_O is not None):
+        e_O = matrix(QQ, out_lwe_e_O).apply_map(recenter)
+
+    m_E = mat_E
+    m_O = mat_O
+
+
+    # In progress, DnD
+    if column_slicing:
+        slices = []
+
+        for c in range(len(m_E.columns())):
+            if m_E.columns()[c].count(0) == len(m_E.columns()[c]):
+                slices.append(c)
+
+        m_E = m_E.delete_columns(slices)
+        e_E = e_E.delete_columns(slices)
+
+        slices = []
+
+        for c in range(len(m_O.columns())):
+            if m_O.columns()[c].count(0) == len(m_O.columns()[c]):
+                slices.append(c)
+
+        m_O = m_O.delete_columns(slices)
+        e_O = e_O.delete_columns(slices)
+
+    # Also in progress :D
+    if row_slicing:
+        slices = []
+
+        for c in range(len(m_E.rows())):
+            if m_E.rows()[c].count(0) == len(m_E.rows()[c]):
+                slices.append(c)
+
+        m_E = m_E.delete_rows(slices)
+        s_E = s_E.delete_columns(slices)
+
+        slices = []
+
+        for c in range(len(m_O.rows())):
+            if m_O.rows()[c].count(0) == len(m_O.rows()[c]):
+                slices.append(c)
+
+        m_O = m_O.delete_rows(slices)
+        s_O = s_O.delete_columns(slices)
+
+    lwe_E = LWE(
+        n=256, 
+        q=q,
+        m=128, 
+        D_e=None, 
+        D_s=None,
+        verbosity=1, 
+        A=matrix(QQ, m_E).T, 
+        b=matrix(QQ, [0 for i in range(128)]),
+        Sigma_s=v_s_E,
+        Sigma_e=v_e_E,
+        mean_s=m_s_E,
+        mean_e=m_e_E,
+        s=s_E,
+        e_vec=e_E,
+    )
+
+    lwe_O = LWE(
+        n=256, 
+        q=q,
+        m=128, 
+        D_e=None, 
+        D_s=None,
+        verbosity=1, 
+        A=matrix(QQ, m_O).T, 
+        b=matrix(QQ, [0 for i in range(128)]),
+        Sigma_s=v_s_O,
+        Sigma_e=v_e_O,
+        mean_s=m_s_O,
+        mean_e=m_e_O,
+        s=s_O,
+        e_vec=e_O,
+    )
+
+
+    dbdd_E = lwe_E.embed_into_DBDD()
+    dbdd_O = lwe_O.embed_into_DBDD()
+
+    print("Finished!")
+
+    # Return dbdd instances
+
+    return (dbdd_E, dbdd_O)
+
+
+def load_data(filename):
+
+    print("Loading data file...")
+
     data = np.load(filename, allow_pickle=True)
 
-    # Extract Secret Key and ciphertext from data
     skpv = data['skpv']
     bhat = data['bhat']
 
-    # Use ciphertext and NTT to generate 'LWE' A matrix
-    ct_ntt = [F(i) for i in bhat[0]]
-
-    # U -> representive of ciphertext as a matrix multiplication
-    U = gen_u_matrix(ct_ntt)
-    U_64 = U.submatrix(0, 0, 64, 64)
-    U_i64 = U_64.inverse().T
-
-    U_E = U_i64.matrix_from_columns([2*i for i in range(32)])
-
-    # V -> NTT matrix 
-    V = gen_full_ntt_matrix()
-    V_half = gen_half_ntt_matrix()
-    V_64 = V_half.T.submatrix(0, 0, 128, 32)
-
-    block = block_matrix(F, 2, 1, [[-U_E], [V_64]])
-
-    mat = block.T.rref().T # submatrix
-    mat = convert_mat_to_lwe(mat)
-    # (shat ** chat) * Ui - s * V = 0
-    # (shat ** chat || s) * [ Ui // V ] = 0
-    # (shat ** chat || s) * [ 1 // MAT ] = 0
-
-    secret_ntt = [F(i) for i in skpv[0]]
-    secret_ntt_even = [secret_ntt[2*i] for i in range(128)]
-
-    # Apply inverse NTT to get secret key polynomial
-    secret_poly = list(list(matrix(F, 1, 256, secret_ntt) * V.T.inverse())[0])
-    secret_even_poly = list(list(matrix(F, 1, 128, secret_ntt_even) * V_half.T.inverse())[0])
-
-
-    # combined_secret = matrix(F, 1, 320, pairwise_mult(secret_ntt, ct_ntt)[:64] + secret_poly)
-
-    # zzero = matrix(F, 1, 64, pairwise_mult(secret_ntt, ct_ntt)[:64]) + matrix(F, 1, 256, secret_poly) * mat # = vector of zeroes!!
-
-    # Get the multiplication to match with the acquired data
-    mul = pairwise_mult(secret_ntt, ct_ntt)[:64]
-    mul_even = [mul[2 * i] for i in range(32)]
-    mul_odd = [mul[2 * i + 1] for i in range(32)]
-
-    # print(matrix(F, 1, 32, mul_even) + matrix(F, 1, 160, mul_odd + secret_even_poly) * mat) # all zeroes
-    
-    # Process the data into means and variances
     ntt_coeff_dist = data['ntt_coeff_dist'][()]
     means, variances = [], []
 
     sum_v = 0
-    for i in range(256):
+    for i in range(256):  
         coeff, confidence = max(ntt_coeff_dist[i][0].items(), key=lambda x: x[1])
         coeff_mean = np.average(list(ntt_coeff_dist[i][0].keys()), weights=list(ntt_coeff_dist[i][0].values()))
         variance = 0
@@ -159,132 +374,139 @@ def load_ntt_data(filename):
         means.append(coeff_mean)
         variances.append(variance)
 
-    variances = variances[:64]
-    means = means[:64]
+    print("Loaded means and variances!")
 
-    # means = [round((i * (2^16))) % 3329 for i in means]
-    # print(f'{means = }')
+    return (skpv, bhat, means, variances)
 
-    variances_odd = [variances[2*i + 1] for i in range(32)]
-    variances_even = [variances[2*i] for i in range(32)]
 
-    means_even = [means[2*i] for i in range(32)]
-    means_odd = [means[2*i + 1] for i in range(32)]
+def conv_info(ciphertext_ntt, means_cs, variances_cs, secret_ntt=None):
 
-    secret_ciphertext_product = [QQ((i*169) % 3329) for i in pairwise_mult(secret_ntt, ct_ntt)[:64]]
-    # secret_s = mul_odd + secret_even_poly
-    # secret_e = mul_even
-    
-    # secret_even_poly = [QQ((i*169) % 3329) for i in secret_even_poly] 
-    secret_s = [secret_ciphertext_product[2*i + 1] for i in range(32)] + secret_even_poly
-    secret_e = [secret_ciphertext_product[2*i] for i in range(32)]
+    print("Converting mean/var dataa into proper representation...")
 
-    #means_even = [secret_ciphertext_product[2*i] for i in range(32)]            # COMMENT THESE OUT
-    #means_odd = [secret_ciphertext_product[2*i + 1] for i in range(32)]         # COMMENT THESE OUT
+    # Split the variances into the error part and the part contained in the secret
+    variances_cs_s = [variances_cs[2*i + 1] for i in range(128)]
+    variances_cs_e = [variances_cs[2*i] for i in range(128)]
 
+    # Split the means into the error part and the part contained in the secret
+    means_cs_s = [means_cs[2*i + 1] for i in range(128)]
+    means_cs_e = [means_cs[2*i] for i in range(128)]
+
+    # Get variance and mean of actual secret vector
     D_s = build_centered_binomial_law(2)
+    m_sec, v_sec = average_variance(D_s)
 
-    m_s, v_s = average_variance(D_s)
+    # Calculate the variance and mean of the secret
+    variance_s = variances_cs_s + [v_sec for i in range(128)]
+    mean_s = means_cs_s + [m_sec for i in range(128)]
 
-    variance_s = variances_odd + [v_s for i in range(128)]
+    # Set the variance and mean of error (just a formality -- its actually just the exact value)
+    variance_e = variances_cs_e
+    mean_e = means_cs_e
 
-    mean_s = means_odd + [m_s for i in range(128)]
     # Cast everything to a rational
     mean_s = [round(i) for i in mean_s]
-    means_even = [round(i) for i in means_even]
+    mean_e = [round(i) for i in mean_e]
 
     variance_s = [QQ(i) if i > (1/100) else QQ(1/100) for i in variance_s]
-    variances_even = [QQ(i) if i > (1/100) else QQ(1/100) for i in variances_even]
+    variance_e = [QQ(i) if i > (1/100) else QQ(1/100) for i in variance_e]
 
-    variances_list = variances_even + variance_s
-    print(variances_list) 
-    #print(pairwise_mult(secret_ntt, ct_ntt)[:64])
-    # print(f'{secret_ciphertext_product = }')
-    # print()
-    # print(variance_s)
-    print(f"s     : {matrix(QQ, secret_s).apply_map(recenter)}")
-    print(f"mean_s: {mean_s}")
-    # print()
-    print(f"e     : {matrix(QQ, secret_e).apply_map(recenter)}")
-    print(f"mean_e: {means_even}")
-   
-    print((matrix(QQ, secret_s) * matrix(QQ, mat) + matrix(QQ, secret_e)) % 3329)
+    # Full list of means / vars
+    means_list = mean_e + mean_s
+    variances_list = variance_e + variance_s
 
-    lwe = LWE(
-        n=160, 
-        q=q,
-        m=32, 
-        D_e=None, 
-        D_s=None,
-        verbosity=1, 
-        A=matrix(QQ, mat).T, 
-        b=matrix(QQ, [0 for i in range(32)]),
-        Sigma_s=variance_s,
-        Sigma_e=variances_even,
-        mean_s=mean_s,
-        mean_e=means_even,
-        s=matrix(QQ, secret_s).apply_map(recenter),
-        e_vec=matrix(QQ, secret_e).apply_map(recenter)
-    )
-   
-    # ebdd = lwe.embed_into_EBDD()
-    dbdd = lwe.embed_into_DBDD()
-    # print(dbdd.S.parent(), dbdd.B.parent(), dbdd.mu.parent())
-    # print(dbdd.volumes())
-    # print(ebdd.volumes())
-    # ebdd.estimate_attack()
-    dbdd.estimate_attack()
-    print(dbdd.ellip_norm())
-    
-    for i, var in enumerate(variances_list):
-        if var > 1/100:
+    print("Done!")
+
+    dE, dO = embed_instance_into_dbdd(ciphertext_ntt, variance_s, mean_s, variance_e, mean_e, variance_s, mean_s, variance_e, mean_e, secret_ntt=secret_ntt)
+    return (dE, dO, means_list, variances_list)
+
+
+def simulation_test(filename, guessable):
+    skpv, bhat, means, variances = load_data(filename)
+    for i in range(64 - guessable):
+
+        # Simulated variance, much more than normal
+        D_s = build_centered_binomial_law(2)
+        out_val = draw_from_distribution(D_s)
+        mean, var = average_variance(D_s)
+        means[i] = skpv[0][i] + out_val
+        variances[i] = var
+
+    return skpv, bhat, means, variances
+
+
+def do_attack(filename):
+
+    F = GF(3329)
+    q = 3329
+
+#    skpv, bhat, means, variances = load_data(filename)
+
+    skpv, bhat, means, variances = simulation_test(filename, 35)
+
+    dbdd_E, dbdd_O, means_list, variances_list = conv_info(bhat, means, variances, secret_ntt=skpv)
+
+    dbdd_E.estimate_attack()
+
+    # print("Integrating zeroes ...")
+
+    # for i in range(32, 128):
+    #     prod_vec = [0] * (256 + 128)
+    #     prod_vec[i] = 1
+    #     dbdd_E.integrate_perfect_hint(vec(prod_vec), int(0))
+
+    # for i in range(160, 256):
+    #     prod_vec = [0] * (256 + 128)
+    #     prod_vec[i] = 1
+    #     dbdd_E.integrate_perfect_hint(vec(prod_vec), int(0))
+
+    # print("Done!")
+
+    print("Integrating full guesses ... ")
+
+    for i in range(0, 32):
+        if variances_list[i] > 1/10:
             continue
 
-        prod_vec = [0] * 192
+        prod_vec = [0] * (256 + 128)
         prod_vec[i] = 1
-        value = (means_even+mean_s)[i]
+        value = means_list[i]
 
-        dbdd.integrate_perfect_hint(vec(prod_vec), int(round(value)))
-        # ebdd.integrate_perfect_hint(*ebdd.convert_hint_e_to_c(vec(prod_vec), value))
-
-    # ebdd.apply_perfect_hints()
-
-    # print(dbdd.mu)
-    # print(dbdd.u)
-    # ebdd.estimate_attack()
-    dbdd.estimate_attack()
-    print(dbdd.ellip_norm())
-    # print(dbdd.volumes())
-
-    # ebdd.attack()
-    dbdd.attack()
+        dbdd_E.integrate_perfect_hint(vec(prod_vec), int(round(value)))
 
 
+    for i in range(128, 160):
+        if variances_list[i] > 1/10:
+            continue
+
+        prod_vec = [0] * (256 + 128)
+        prod_vec[i] = 1
+        value = means_list[i]
+
+        dbdd_E.integrate_perfect_hint(vec(prod_vec), int(round(value)))
+
+    print("Done!")
+
+    print("Integrating pathological short vectors...")
+
+    short_vec = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+
+    for i in range(30): 
+        dbdd_E.integrate_short_vector_hint(matrix(QQ, matrix(F, short_vec)).apply_map(recenter))
+        short_vec = short_vec[1:] + [0] 
+
+
+    short_vec = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0]
+
+    for i in range(30): 
+        dbdd_E.integrate_short_vector_hint(matrix(QQ, matrix(F, short_vec)).apply_map(recenter))
+        short_vec = short_vec[1:] + [0] 
+
+    print("Done!")
+
+    dbdd_E.estimate_attack()
+
+    dbdd_E.attack()
 
 if __name__ == "__main__":
-    load_ntt_data("../ktrace-cca-data/results_exp_2_[(0,)]_0.8_3.npz")
-
-#     F = GF(3329)
-#     P = PolynomialRing(F, 'z')
-#     z = var('z')
-#     R = P.quotient(z^256 + 1)
-#     NTT = gen_full_ntt_matrix()
-#     NTT_inv = NTT.inverse()
-#     vv = [F.random_element() for _ in range(256)]
-#     ww = [F.random_element() for _ in range(256)]
-# 
-# 
-#     U = gen_u_matrix(kyber_ntt(vv))
-# 
-# 
-    # print(vv)
-    # print((NTT_inv * matrix(F, 256, 1, kyber_ntt(vv))).T)
-
-    # print(list(U * matrix(F, 256, 1, kyber_ntt(ww))))
-
-    # print(pairwise_mult(kyber_ntt(ww), kyber_ntt(vv)))
-
-    #print(pairwise_mult(kyber_ntt(vv), kyber_ntt(ww)))
-    #print(kyber_ntt(list(R(vv) * R(ww))))
-
-
+    do_attack("../ktrace-cca-data/results_exp_2_[(0,)]_0.8_3.npz")

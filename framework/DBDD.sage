@@ -102,7 +102,7 @@ class DBDD(DBDD_generic):
         num = self.mu * V.T
         self.mu -= (num / den) * VS
         num = VS.T * VS
-        print(num)
+        # print(num)
         self.S -= num / den
 
     @not_after_projections
@@ -477,6 +477,9 @@ class DBDD(DBDD_generic):
         else:
             beta_pre = 2
         # Run BKZ tours with progressively increasing blocksizes
+
+        print("Secret key:")
+        print(self.u)
         for beta in range(beta_pre, B.nrows() + 1):
             self.logging("\rRunning BKZ-%d" % beta, newline=False)
             if beta_max is not None:
@@ -494,10 +497,10 @@ class DBDD(DBDD_generic):
                 bkz(par)
                 bkz.lll_obj()
 
-            print("Secret key:")
-            print(self.u)
+            #print("Secret key:")
+            #print(self.u)
             # Tries all 3 first vectors because of 2 NTRU parasite vectors
-            for j in range(3):
+            for j in range(bkz.A.nrows):
                 # Recover the tentative solution,
                 # undo distorition, scaling, and test it
                 v = vec(bkz.A[j])
@@ -505,6 +508,17 @@ class DBDD(DBDD_generic):
                 solution = matrix(ZZ, v.apply_map(round)) / u_den
                 print(f"Solution {j}:")
                 print(solution)
+                #with open("outvecs.txt", "a") as f:
+                #    f.write(str(list(solution)))
+                #    f.write("\n")
+                #for val in list(solution):
+                #    for i in val:
+                #        if i == 0:
+                #            print(".", end="")
+                #        else:
+                #            print(abs(i), end="")
+                #    print()
+
                 if not self.check_solution(solution):
                     continue
 
