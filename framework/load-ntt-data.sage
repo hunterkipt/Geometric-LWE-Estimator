@@ -428,7 +428,7 @@ def simulation_test(filename, guessable):
         D_s = build_centered_binomial_law(2)
         out_val = draw_from_distribution(D_s)
         mean, var = average_variance(D_s)
-        means[i] = skpv[0][i] + out_val
+        means[i] = bhat[0][i] + out_val
         variances[i] = var
 
     return skpv, bhat, means, variances
@@ -439,9 +439,11 @@ def do_attack(filename):
     F = GF(3329)
     q = 3329
 
-#    skpv, bhat, means, variances = load_data(filename)
+    # skpv, bhat, means, variances = load_data(filename)
 
-    skpv, bhat, means, variances = simulation_test(filename, 35)
+    guesses = 35
+
+    skpv, bhat, means, variances = simulation_test(filename, guesses)
 
     dbdd_E, dbdd_O, means_list, variances_list = conv_info(bhat, means, variances, secret_ntt=skpv)
 
