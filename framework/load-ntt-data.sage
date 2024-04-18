@@ -1,8 +1,13 @@
 import numpy as np
+import sys
 from sage.rings.generic import ProductTree
+
+sys.stdout.reconfigure(line_buffering=True)
 
 load("../framework/LWE.sage")
 load("../framework/utils.sage")
+
+
 
 q = 3329
 
@@ -217,6 +222,8 @@ def generate_ntt_instance(ciphertext_ntt, secret_ntt=None):
         prod_part_e = [prod[2*i] for i in range(128)]
         prod_part_s = [prod[2*i + 1] for i in range(128)]
 
+        print ("prod_part_s", prod_part_s)
+
         # Check the output of the LWE computation.
         out_lwe_s_E = matrix(F, 1, 256, prod_part_s + s_E)
         out_lwe_e_E = matrix(F, 1, 128, prod_part_e)
@@ -238,7 +245,7 @@ def generate_ntt_instance(ciphertext_ntt, secret_ntt=None):
 
     return ((mat_E, out_lwe_s_E, out_lwe_e_E), (mat_O, out_lwe_s_O, out_lwe_e_O))
 
-def embed_instance_into_dbdd(ciphertext_ntt, v_s_E, m_s_E, v_e_E, m_e_E, v_s_O, m_s_O, v_e_O, m_e_O, secret_ntt=None, column_slicing=False, row_slicing=False):
+def embed_instance_into_dbdd(ciphertext_ntt, v_s_E, m_s_E, v_e_E, m_e_E, v_s_O, m_s_O, v_e_O, m_e_O, secret_ntt=None):
 
     print("Embedding into DBDD...")
 
@@ -264,47 +271,6 @@ def embed_instance_into_dbdd(ciphertext_ntt, v_s_E, m_s_E, v_e_E, m_e_E, v_s_O, 
 
     m_E = mat_E
     m_O = mat_O
-
-
-    # In progress, DnD
-    if column_slicing:
-        slices = []
-
-        for c in range(len(m_E.columns())):
-            if m_E.columns()[c].count(0) == len(m_E.columns()[c]):
-                slices.append(c)
-
-        m_E = m_E.delete_columns(slices)
-        e_E = e_E.delete_columns(slices)
-
-        slices = []
-
-        for c in range(len(m_O.columns())):
-            if m_O.columns()[c].count(0) == len(m_O.columns()[c]):
-                slices.append(c)
-
-        m_O = m_O.delete_columns(slices)
-        e_O = e_O.delete_columns(slices)
-
-    # Also in progress :D
-    if row_slicing:
-        slices = []
-
-        for c in range(len(m_E.rows())):
-            if m_E.rows()[c].count(0) == len(m_E.rows()[c]):
-                slices.append(c)
-
-        m_E = m_E.delete_rows(slices)
-        s_E = s_E.delete_columns(slices)
-
-        slices = []
-
-        for c in range(len(m_O.rows())):
-            if m_O.rows()[c].count(0) == len(m_O.rows()[c]):
-                slices.append(c)
-
-        m_O = m_O.delete_rows(slices)
-        s_O = s_O.delete_columns(slices)
 
     lwe_E = LWE(
         n=256, 
@@ -381,7 +347,7 @@ def load_data(filename):
 
 def conv_info(ciphertext_ntt, means_cs, variances_cs, secret_ntt=None):
 
-    print("Converting mean/var dataa into proper representation...")
+    print("Converting mean/var data into proper representation...")
 
     # Split the variances into the error part and the part contained in the secret
     variances_cs_s = [variances_cs[2*i + 1] for i in range(128)]
@@ -391,7 +357,7 @@ def conv_info(ciphertext_ntt, means_cs, variances_cs, secret_ntt=None):
     means_cs_s = [means_cs[2*i + 1] for i in range(128)]
     means_cs_e = [means_cs[2*i] for i in range(128)]
 
-    # Get variance and mean of actual secret vector
+    # Get variance and mean of actual secret vectorΠ
     D_s = build_centered_binomial_law(2)
     m_sec, v_sec = average_variance(D_s)
 
@@ -416,6 +382,9 @@ def conv_info(ciphertext_ntt, means_cs, variances_cs, secret_ntt=None):
 
     print("Done!")
 
+    print ("mean_s", mean_s)
+    print ("var_s", variance_s)
+
     dE, dO = embed_instance_into_dbdd(ciphertext_ntt, variance_s, mean_s, variance_e, mean_e, variance_s, mean_s, variance_e, mean_e, secret_ntt=secret_ntt)
     return (dE, dO, means_list, variances_list)
 
@@ -428,8 +397,9 @@ def simulation_test(filename, guessable):
         D_s = build_centered_binomial_law(2)
         out_val = draw_from_distribution(D_s)
         mean, var = average_variance(D_s)
-        means[i] = bhat[0][i] + out_val
-        variances[i] = var
+        print ("added noise", out_val)
+        means[i] = means[i] + out_val
+        variances[i] = var # is this wrong?
 
     return skpv, bhat, means, variances
 
@@ -441,11 +411,13 @@ def do_attack(filename):
 
     # skpv, bhat, means, variances = load_data(filename)
 
-    guesses = 35
+    guesses = 45
 
     skpv, bhat, means, variances = simulation_test(filename, guesses)
 
     dbdd_E, dbdd_O, means_list, variances_list = conv_info(bhat, means, variances, secret_ntt=skpv)
+
+    dbdd_E.estimate_attack()
 
     dbdd_E.estimate_attack()
 
@@ -465,6 +437,8 @@ def do_attack(filename):
 
     print("Integrating full guesses ... ")
 
+    guesses = 0
+
     for i in range(0, 32):
         if variances_list[i] > 1/10:
             continue
@@ -474,6 +448,7 @@ def do_attack(filename):
         value = means_list[i]
 
         dbdd_E.integrate_perfect_hint(vec(prod_vec), int(round(value)))
+        guesses += 1
 
 
     for i in range(128, 160):
@@ -485,6 +460,7 @@ def do_attack(filename):
         value = means_list[i]
 
         dbdd_E.integrate_perfect_hint(vec(prod_vec), int(round(value)))
+        guesses += 1
 
     print("Done!")
 
