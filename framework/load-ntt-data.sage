@@ -249,8 +249,15 @@ def embed_instance_into_dbdd(ciphertext_ntt, v_s_E, m_s_E, v_e_E, m_e_E, v_s_O, 
 
     print("Embedding into DBDD...")
 
+    F = GF(3329)
+    q = 3329
+
     # Construct NTT -> LWE matrices
     (mat_E, out_lwe_s_E, out_lwe_e_E), (mat_O, out_lwe_s_O, out_lwe_e_O) = generate_ntt_instance(ciphertext_ntt, secret_ntt=secret_ntt)
+
+    # Recenter to 0
+    b_E = -matrix(F, m_s_E) * mat_E - matrix(F, m_e_E)
+    b_O = -matrix(F, m_s_O) * mat_O - matrix(F, m_e_O)
 
     # Embed into LWE
 
@@ -261,13 +268,22 @@ def embed_instance_into_dbdd(ciphertext_ntt, v_s_E, m_s_E, v_e_E, m_e_E, v_s_O, 
 
     if (out_lwe_s_E is not None):
         s_E = matrix(QQ, out_lwe_s_E).apply_map(recenter)
+        s_E -= matrix(QQ, m_s_E)
     if (out_lwe_e_E is not None):
         e_E = matrix(QQ, out_lwe_e_E).apply_map(recenter)
-
+        e_E -= matrix(QQ, m_e_E)
     if (out_lwe_s_O is not None):
         s_O = matrix(QQ, out_lwe_s_O).apply_map(recenter)
+        s_O -= matrix(QQ, m_s_O)
     if (out_lwe_e_O is not None):
         e_O = matrix(QQ, out_lwe_e_O).apply_map(recenter)
+        e_O -= matrix(QQ, m_e_O)
+
+    print (matrix(F, s_E)) 
+    print (matrix(F, e_E)) 
+    print ()
+    print (matrix(F, s_E) * mat_E + matrix(F, e_E))
+    print (b_E)
 
     m_E = mat_E
     m_O = mat_O
@@ -280,11 +296,11 @@ def embed_instance_into_dbdd(ciphertext_ntt, v_s_E, m_s_E, v_e_E, m_e_E, v_s_O, 
         D_s=None,
         verbosity=1, 
         A=matrix(QQ, m_E).T, 
-        b=matrix(QQ, [0 for i in range(128)]),
+        b=matrix(QQ, b_E),
         Sigma_s=v_s_E,
         Sigma_e=v_e_E,
-        mean_s=m_s_E,
-        mean_e=m_e_E,
+        mean_s=[0] * len(m_s_E),
+        mean_e=[0] * len(m_e_E),
         s=s_E,
         e_vec=e_E,
     )
@@ -297,11 +313,11 @@ def embed_instance_into_dbdd(ciphertext_ntt, v_s_E, m_s_E, v_e_E, m_e_E, v_s_O, 
         D_s=None,
         verbosity=1, 
         A=matrix(QQ, m_O).T, 
-        b=matrix(QQ, [0 for i in range(128)]),
+        b=matrix(QQ, b_O),
         Sigma_s=v_s_O,
         Sigma_e=v_e_O,
-        mean_s=m_s_O,
-        mean_e=m_e_O,
+        mean_s=[0] * len(m_s_O),
+        mean_e=[0] * len(m_e_O),
         s=s_O,
         e_vec=e_O,
     )
@@ -411,7 +427,7 @@ def do_attack(filename):
 
     # skpv, bhat, means, variances = load_data(filename)
 
-    guesses = 45
+    guesses = 55
 
     skpv, bhat, means, variances = simulation_test(filename, guesses)
 
@@ -445,7 +461,8 @@ def do_attack(filename):
 
         prod_vec = [0] * (256 + 128)
         prod_vec[i] = 1
-        value = means_list[i]
+        #value = means_list[i]
+        value = 0
 
         dbdd_E.integrate_perfect_hint(vec(prod_vec), int(round(value)))
         guesses += 1
@@ -457,7 +474,8 @@ def do_attack(filename):
 
         prod_vec = [0] * (256 + 128)
         prod_vec[i] = 1
-        value = means_list[i]
+        #value = means_list[i]
+        value = 0
 
         dbdd_E.integrate_perfect_hint(vec(prod_vec), int(round(value)))
         guesses += 1
