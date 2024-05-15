@@ -497,8 +497,9 @@ class DBDD(DBDD_generic):
                 bkz(par)
                 bkz.lll_obj()
 
-            #print("Secret key:")
-            #print(self.u)
+            print("Secret key:")
+            print(self.u)
+            print("Secret key norm: ", float((self.u).norm()))
             # Tries all 3 first vectors because of 2 NTRU parasite vectors
             for j in range(bkz.A.nrows):
                 # Recover the tentative solution,
@@ -508,6 +509,7 @@ class DBDD(DBDD_generic):
                 solution = matrix(ZZ, v.apply_map(round)) / u_den
                 print(f"Solution {j}:")
                 print(solution)
+                print("Solution norm: ", float(solution.norm()))
                 #with open("outvecs.txt", "a") as f:
                 #    f.write(str(list(solution)))
                 #    f.write("\n")
