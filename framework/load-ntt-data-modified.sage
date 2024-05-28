@@ -413,7 +413,7 @@ def simulation_test(guessable):
     F = GF(3329)
     q = 3329
 
-    D_poly_s = build_centered_binomial_law(1)
+    D_poly_s = build_centered_binomial_law(2)
     spoly = vec([draw_from_distribution(D_poly_s) for _ in range(256)])
 
     V_NTT = gen_full_ntt_matrix()
