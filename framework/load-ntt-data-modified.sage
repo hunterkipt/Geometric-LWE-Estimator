@@ -421,7 +421,7 @@ def simulation_test(guessable):
     skpv = list(skpv_mat[0])
 
 
-    bhat1 = [randint(0, 3329) for _ in range(64)]
+    bhat1 = [randint(1, 3329) for _ in range(64)]
     bhat2 = [0 for _ in range(192)]
     bhat = bhat1 + bhat2
 
