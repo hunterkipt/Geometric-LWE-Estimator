@@ -41,7 +41,6 @@ def pairwise_mult(v, w):
     result = []
     # (a + bx)(c + dx) = ac + (ad + bc)x + bdx^2 
     for i in range(0,128):
-        print("i: ", i)
         a, b = v[2*i], v[2*i+1]
         c, d = w[2*i], w[2*i+1]
 
