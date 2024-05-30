@@ -480,6 +480,7 @@ class DBDD(DBDD_generic):
 
         print("Secret key:")
         print(self.u)
+        first_secret = str(self.u)
         for beta in range(beta_pre, B.nrows() + 1):
             self.logging("\rRunning BKZ-%d" % beta, newline=False)
             if beta_max is not None:
@@ -500,6 +501,11 @@ class DBDD(DBDD_generic):
             print("Secret key:")
             print(self.u)
             print("Secret key norm: ", float((self.u).norm()))
+            # Stores full basis for either successful or final beta value
+            basis = { "first secret" : first_secret }
+            basis["BKZ"] = beta
+            basis["secret"] = str(self.u)
+            basis["secret_norm"] = float((self.u).norm())
             # Tries all 3 first vectors because of 2 NTRU parasite vectors
             for j in range(bkz.A.nrows):
                 # Recover the tentative solution,
@@ -510,6 +516,8 @@ class DBDD(DBDD_generic):
                 print(f"Solution {j}:")
                 print(solution)
                 print("Solution norm: ", float(solution.norm()))
+                basis[f"v{j:0>3}"] = str(solution)
+                basis[f"v{j:0>3}_norm"] = float(solution.norm())
                 #with open("outvecs.txt", "a") as f:
                 #    f.write(str(list(solution)))
                 #    f.write("\n")
@@ -526,8 +534,10 @@ class DBDD(DBDD_generic):
 
                 self.logging("Success !", style="SUCCESS")
                 self.logging("")
-                return beta, solution
+                # return beta, solution
+                return basis | { "outcome" : "SUCCESS" }
 
         self.logging("Failure ...", style="FAILURE")
         self.logging("")
-        return None, None
+        # return None, None
+        return basis | { "outcome" : "FAILURE" }
