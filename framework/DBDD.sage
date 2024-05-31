@@ -481,6 +481,10 @@ class DBDD(DBDD_generic):
         print("Secret key:")
         print(self.u)
         first_secret = str(self.u)
+        basis = {}
+        basis_vecs = []
+        secret_vec = self.u
+        success = False
         for beta in range(beta_pre, B.nrows() + 1):
             self.logging("\rRunning BKZ-%d" % beta, newline=False)
             if beta_max is not None:
@@ -488,7 +492,8 @@ class DBDD(DBDD_generic):
                     self.logging("Failure ... (reached beta_max)",
                                  style="SUCCESS")
                     self.logging("")
-                    return None, None
+                    # return None, None
+                    return basis | { "outcome" : "FAILURE" }, secret_vec, basis_vecs
 
             if beta == 2:
                 bkz.lll_obj()
@@ -506,6 +511,8 @@ class DBDD(DBDD_generic):
             basis["BKZ"] = beta
             basis["secret"] = str(self.u)
             basis["secret_norm"] = float((self.u).norm())
+            secret_vec = self.u # for sage matrix export
+            basis_vecs = []
             # Tries all 3 first vectors because of 2 NTRU parasite vectors
             for j in range(bkz.A.nrows):
                 # Recover the tentative solution,
@@ -518,6 +525,7 @@ class DBDD(DBDD_generic):
                 print("Solution norm: ", float(solution.norm()))
                 basis[f"v{j:0>3}"] = str(solution)
                 basis[f"v{j:0>3}_norm"] = float(solution.norm())
+                basis_vecs.append(solution) # for sage matrix export
                 #with open("outvecs.txt", "a") as f:
                 #    f.write(str(list(solution)))
                 #    f.write("\n")
@@ -529,15 +537,23 @@ class DBDD(DBDD_generic):
                 #            print(abs(i), end="")
                 #    print()
 
-                if not self.check_solution(solution):
-                    continue
+                # if not self.check_solution(solution):
+                #     continue
 
-                self.logging("Success !", style="SUCCESS")
-                self.logging("")
-                # return beta, solution
-                return basis | { "outcome" : "SUCCESS" }
+                # self.logging("Success !", style="SUCCESS")
+                # self.logging("")
+                # # return beta, solution
+                # return basis | { "outcome" : "SUCCESS" }, secret_vec, basis_vecs
+
+                success |= self.check_solution(solution)
+
+            if not success:
+                continue
+            self.logging("Success !", style="SUCCESS")
+            self.logging("")
+            return basis | { "outcome" : "SUCCESS" }, secret_vec, basis_vecs
 
         self.logging("Failure ...", style="FAILURE")
         self.logging("")
         # return None, None
-        return basis | { "outcome" : "FAILURE" }
+        return basis | { "outcome" : "FAILURE" }, secret_vec, basis_vecs

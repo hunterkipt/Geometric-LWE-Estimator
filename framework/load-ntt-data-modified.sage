@@ -23,8 +23,7 @@ def get_argparse() -> ArgumentParser:
     # parser.add_argument("experiment_file", type=validate_file) # future testing
     parser.add_argument("--guessable", type=int, default=64)
     parser.add_argument("--num-experiments", type=int, default=100)
-    # parser.add_argument("--v", type=float, default=1)
-    # parser.add_argument("--noise-std", type=float) # future testing
+    # parser.add_argument("--noise", type=float, default=1) # future testing
     return parser
 
 def mkdir(path: str, clear=True) -> Path:
@@ -466,6 +465,7 @@ def simulation_test(guessable):
         # Simulated variance, much more than normal
         #D_s = build_centered_binomial_law(1)
         D_s = build_Gaussian_law(1, 50)
+        # D_s = build_Gaussian_law(args.noise, 50) # for future testing
         out_val = draw_from_distribution(D_s)
         #mean, var = average_variance(D_s)
         print ("added noise", out_val)
@@ -602,14 +602,14 @@ def do_attack():
 
     # store final results in JSON
     beta, delta = dbdd_E.estimate_attack()
-    results = dbdd_E.attack()
-    return {
+    results, secret_vecs, basis_vecs = dbdd_E.attack()
+    return ({
         "est": {
             "dim": dbdd_E.dim(),
             "delta": float(delta),
             "beta": float(beta)
         }
-    } | results
+    } | results), secret_vecs, basis_vecs
 
 
 if __name__ == "__main__":
@@ -619,32 +619,34 @@ if __name__ == "__main__":
     #     expr_file = toml.loads(f.read())
 
     
-    mkdir("out", clear=False)
-    with open(f"out/results_{args.guessable}.json", "w", encoding='utf-8') as f:
+    out_directory = "out"
+    mkdir(out_directory, clear=False)
+    with open(f"{out_directory}/results_{args.guessable}.json", "w", encoding='utf-8') as f:
         experiments = []
+        bases = []
+        secrets = []
         try:
             # collect results for num_experiments iterations
             for i in range(args.num_experiments):
-                result = do_attack()
+                result, secret_vec, basis_vecs = do_attack()
                 experiments.append(result)
+                secrets.append(secret_vec)
+                bases.append(basis_vecs)
             # export data in JSON format
-            json.dump(experiments, f, ensure_ascii=False, indent=4)
-            f.close()
             print("closing")
-            sys.exit(0)
         except KeyboardInterrupt:
-            json.dump(experiments, f, ensure_ascii=False, indent=4)
-            f.close()
-            print("closing")
-            sys.exit(0)
-        except ValueError:
-            json.dump(experiments, f, ensure_ascii=False, indent=4)
-            f.close()
+            print("closing (keyboard interrupt)")
+        except ValueError as e:
             print("value error: there is a bug in the code")
-            sys.exit(0)
-        except Exception:
-            json.dump(experiments, f, ensure_ascii=False, indent=4)
-            f.close()
+            print(e)
+        except Exception as e:
             print("unknown exception")
+            print(e)
+        finally:
+            # save all data
+            json.dump(experiments, f, ensure_ascii=False, indent=4)
+            save(secrets, f'{out_directory}/secret_{args.guessable}.sobj')
+            save(bases, f'{out_directory}/basis_{args.guessable}.sobj')
+            f.close()
             sys.exit(0)
 
