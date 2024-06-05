@@ -3,7 +3,10 @@ import sys
 import argparse
 from argparse import ArgumentParser
 from pathlib import Path
+from shutil import rmtree
 from sage.rings.generic import ProductTree
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from multiprocessing import cpu_count
 
 sys.stdout.reconfigure(line_buffering=True)
 
@@ -475,14 +478,14 @@ def simulation_test(guessable):
     return skpv, bhat, means, variances
 
 
-def do_attack():
+def do_attack(exp_id, guessable):
 
     F = GF(3329)
     q = 3329
 
     # skpv, bhat, means, variances = load_data(filename)
 
-    guesses = args.guessable # 38 
+    guesses = guessable # args.guessable # 38 
 
     skpv, bhat, means, variances = simulation_test(guesses)
 
@@ -603,7 +606,8 @@ def do_attack():
     # store final results in JSON
     beta, delta = dbdd_E.estimate_attack()
     results, secret_vecs, basis_vecs = dbdd_E.attack()
-    return ({
+    return exp_id, ({
+        "exp_id": exp_id,
         "est": {
             "dim": dbdd_E.dim(),
             "delta": float(delta),
@@ -620,19 +624,34 @@ if __name__ == "__main__":
 
     
     out_directory = "out"
+    secret_directory = f"out/secrets-{args.guessable}"
+    basis_directory = f"out/bases-{args.guessable}"
     mkdir(out_directory, clear=False)
-    with open(f"{out_directory}/results_{args.guessable}.json", "w", encoding='utf-8') as f:
-        experiments = []
-        bases = []
-        secrets = []
+    mkdir(secret_directory, clear=True)
+    mkdir(basis_directory, clear=True)
+    with open(f"{out_directory}/results_{args.guessable}.json", "w", encoding='utf-8') as f, \
+            ProcessPoolExecutor(max_workers=cpu_count()) as pool:
+        # experiments = []
+        # bases = []
+        # secrets = []
+        f.write("[\n")
         try:
             # collect results for num_experiments iterations
             for i in range(args.num_experiments):
-                result, secret_vec, basis_vecs = do_attack()
-                experiments.append(result)
-                secrets.append(secret_vec)
-                bases.append(basis_vecs)
-            # export data in JSON format
+                queue = []
+                for _ in range(2 * cpu_count()):
+                    future = pool.submit(do_attack, exp_id=i, guessable=args.guessable)
+                    queue.append(future)
+                for future in as_completed(queue):
+                    exp_id, result, secret_vec, basis_vecs = future.result()
+                    # export data in JSON format and sage matrix
+                    f.write(f"{json.dumps(result, indent=4)},\n")
+                    save(secret_vec, f"{secret_directory}/secret_{exp_id:0>2}.sobj")
+                    save(basis_vecs, f"{basis_directory}/secret_{exp_id:0>2}.sobj")
+
+                # experiments.append(result)
+                # secrets.append(secret_vec)
+                # bases.append(basis_vecs)
             print("closing")
         except KeyboardInterrupt:
             print("closing (keyboard interrupt)")
@@ -644,9 +663,10 @@ if __name__ == "__main__":
             print(e)
         finally:
             # save all data
-            json.dump(experiments, f, ensure_ascii=False, indent=4)
-            save(secrets, f'{out_directory}/secret_{args.guessable}.sobj')
-            save(bases, f'{out_directory}/basis_{args.guessable}.sobj')
+            # json.dump(experiments, f, ensure_ascii=False, indent=4)
+            # save(secrets, f'{out_directory}/secret_{args.guessable}.sobj')
+            # save(bases, f'{out_directory}/basis_{args.guessable}.sobj')
+            f.write("]")
             f.close()
             sys.exit(0)
 
