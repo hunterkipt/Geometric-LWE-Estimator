@@ -558,7 +558,7 @@ def do_attack(exp_id, guessable):
     print("Integrating pathological short vectors...")
 
     # sets lower threshold for the dimension
-    threshold = ceil((128+64-args.guessable)/2)
+    threshold = ceil((128+64-guessable)/2)
 
     for i in range(32, 128):
         prod_vec = [0] * (256 + 128)
@@ -637,17 +637,16 @@ if __name__ == "__main__":
         f.write("[\n")
         try:
             # collect results for num_experiments iterations
+            queue = []
             for i in range(args.num_experiments):
-                queue = []
-                for _ in range(2 * cpu_count()):
-                    future = pool.submit(do_attack, exp_id=i, guessable=args.guessable)
-                    queue.append(future)
-                for future in as_completed(queue):
-                    exp_id, result, secret_vec, basis_vecs = future.result()
-                    # export data in JSON format and sage matrix
-                    f.write(f"{json.dumps(result, indent=4)},\n")
-                    save(secret_vec, f"{secret_directory}/secret_{exp_id:0>2}.sobj")
-                    save(basis_vecs, f"{basis_directory}/secret_{exp_id:0>2}.sobj")
+                future = pool.submit(do_attack, exp_id=i, guessable=args.guessable)
+                queue.append(future)
+            for future in as_completed(queue):
+                exp_id, result, secret_vec, basis_vecs = future.result()
+                # export data in JSON format and sage matrix
+                f.write(f"{json.dumps(result, indent=4)},\n")
+                save(secret_vec, f"{secret_directory}/secret_{exp_id:0>2}.sobj")
+                save(basis_vecs, f"{basis_directory}/secret_{exp_id:0>2}.sobj")
 
                 # experiments.append(result)
                 # secrets.append(secret_vec)
