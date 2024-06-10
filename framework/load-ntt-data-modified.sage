@@ -82,14 +82,21 @@ def gen_u_matrix(u):
     F = Zmod(3329)
     gen = F(17)
     block_list = []
+    block_list2 = []
     for i in range(0, 128):
         c = u[2*i]
         d = u[2*i + 1]
         block = matrix(F, 2, 2, [[c, d * (gen^(2 * bit_reverse_7(i) + 1))], [d, c]])
         block_list.append(block)
+        if (c == 0 and d == 0):
+            block2 = matrix(F, 2, 2)
+        else:
+            block2 = block.inverse()
+        block_list2.append(block2)
 
     U = block_diagonal_matrix(block_list)
-    return U
+    U_inv = block_diagonal_matrix(block_list2)
+    return U, U_inv
 
 def gen_half_ntt_matrix():
     F = GF(3329)
@@ -134,7 +141,7 @@ def generate_ntt_instance(ciphertext_ntt, secret_ntt=None):
 
     ct_ntt = [F(i) for i in ciphertext_ntt[0]]
 
-    U = gen_u_matrix(ct_ntt)
+    U, U_inv  = gen_u_matrix(ct_ntt)
 
     # Inverse. In the first 64 case, this will be the inverse of U but with blocks only for the first 64:
     # [ a b ....... ]
@@ -142,7 +149,8 @@ def generate_ntt_instance(ciphertext_ntt, secret_ntt=None):
     # [ ... a b ... ]
     # [ ... c d ... ]
     # ...
-    U_i = U.pseudoinverse().T
+    #U_i = U.pseudoinverse().T
+    U_i = U_inv.T
 
     # The full matrix for each of the even and the odd parts of the secret polynomial
     # Looks like this:
@@ -174,6 +182,8 @@ def generate_ntt_instance(ciphertext_ntt, secret_ntt=None):
     proj_U_E = U_E_full_inv * U_E_full
     proj_U_O = U_O_full_inv * U_O_full
 
+    print("Proj U_E: ", proj_U_E)
+    print("Proj U_O: ", proj_U_O)
 
     # NTT matrix for the NTT transformation in the Kyber field.
     V = gen_full_ntt_matrix() 
