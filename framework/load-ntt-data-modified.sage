@@ -182,9 +182,6 @@ def generate_ntt_instance(ciphertext_ntt, secret_ntt=None):
     proj_U_E = U_E_full_inv * U_E_full
     proj_U_O = U_O_full_inv * U_O_full
 
-    print("Proj U_E: ", proj_U_E)
-    print("Proj U_O: ", proj_U_O)
-
     # NTT matrix for the NTT transformation in the Kyber field.
     V = gen_full_ntt_matrix() 
 
@@ -235,7 +232,7 @@ def generate_ntt_instance(ciphertext_ntt, secret_ntt=None):
     # This is an LWE instance (heuristically, doesn't exactly meet assumptions).
     mat_E = convert_mat_to_lwe(mat_E)
     mat_O = convert_mat_to_lwe(mat_O)
-
+ 
     out_lwe_s_E = None
     out_lwe_e_E = None
     out_lwe_s_O = None
@@ -464,7 +461,7 @@ def simulation_test(guessable):
     skpv = list(skpv_mat[0])
 
 
-    bhat1 = [randint(1, 3329) for _ in range(64)]
+    bhat1 = [randint(1, 3328) for _ in range(64)]
     bhat2 = [0 for _ in range(192)]
     bhat = bhat1 + bhat2
 
