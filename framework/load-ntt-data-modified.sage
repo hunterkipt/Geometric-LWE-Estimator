@@ -157,6 +157,10 @@ def generate_ntt_instance(ciphertext_ntt, secret_ntt=None):
     U_E_full = U_i.matrix_from_columns([2*i for i in range(U_i.dimensions()[1] // 2)]) 
     U_O_full = U_i.matrix_from_columns([2*i + 1 for i in range(U_i.dimensions()[1] // 2)])
 
+    Ut = U.T
+
+    U_E_full_inv = Ut.matrix_from_rows([2*i for i in range(Ut.dimensions()[1] // 2)])
+    U_O_full_inv = Ut.matrix_from_rows([2*i + 1 for i in range(Ut.dimensions()[1] // 2)])
 
     # Pi_(UE) and Pi_(UO)
     # In the first 64 case, will be the 32 dim identity and 0 everywhere else for each one
@@ -167,8 +171,9 @@ def generate_ntt_instance(ciphertext_ntt, secret_ntt=None):
     # Note that these should be the same - either a U block is 0 or not.
     # Therefore, the projection at a single point is determined by that block, which is identical in both.
 
-    proj_U_E = U_E_full.pseudoinverse() * U_E_full
-    proj_U_O = U_O_full.pseudoinverse() * U_O_full
+    proj_U_E = U_E_full_inv * U_E_full
+    proj_U_O = U_O_full_inv * U_O_full
+
 
     # NTT matrix for the NTT transformation in the Kyber field.
     V = gen_full_ntt_matrix() 
