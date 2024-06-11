@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.random import seed as np_seed
 import sys
 import argparse
 from argparse import ArgumentParser
@@ -447,8 +448,12 @@ def conv_info(ciphertext_ntt, means_cs, variances_cs, secret_ntt=None):
     return (dE, dO, means_list, variances_list)
 
 
-def simulation_test(guessable):
+def simulation_test(exp_id, guessable):
     #skpv, bhat, means, variances = load_data(filename)
+
+    # deterministic randomization
+    set_random_seed(exp_id)
+    np_seed(seed=exp_id)
 
     F = GF(3329)
     q = 3329
@@ -499,7 +504,7 @@ def do_attack(exp_id, guessable):
 
     guesses = guessable # args.guessable # 38 
 
-    skpv, bhat, means, variances = simulation_test(guesses)
+    skpv, bhat, means, variances = simulation_test(exp_id, guesses)
 
     dbdd_E, dbdd_O, means_list, variances_list = conv_info(bhat, means, variances, secret_ntt=skpv)
 
@@ -643,41 +648,30 @@ if __name__ == "__main__":
     mkdir(basis_directory, clear=True)
     with open(f"{out_directory}/results_{args.guessable}.json", "w", encoding='utf-8') as f, \
             ProcessPoolExecutor(max_workers=cpu_count()) as pool:
-        # experiments = []
-        # bases = []
-        # secrets = []
         f.write("[\n")
         try:
             # collect results for num_experiments iterations
             queue = []
+            bkz_beta = []
             for i in range(args.num_experiments):
                 future = pool.submit(do_attack, exp_id=i, guessable=args.guessable)
                 queue.append(future)
             for future in as_completed(queue):
                 exp_id, result, secret_vec, basis_vecs = future.result()
+                if result["outcome"] == "SUCCESS":
+                    bkz_beta.append([result["est"]["beta"], result["BKZ"]])
                 # export data in JSON format and sage matrix
                 f.write(f"{json.dumps(result, indent=4)},\n")
                 save(secret_vec, f"{secret_directory}/secret_{exp_id:0>2}.sobj")
                 save(basis_vecs, f"{basis_directory}/secret_{exp_id:0>2}.sobj")
-
-                # experiments.append(result)
-                # secrets.append(secret_vec)
-                # bases.append(basis_vecs)
             print("closing")
-        except KeyboardInterrupt:
-            print("closing (keyboard interrupt)")
-        except ValueError as e:
-            print("value error: there is a bug in the code")
-            print(e)
         except Exception as e:
+            from traceback import print_exc
             print("unknown exception")
-            print(e)
+            print_exc()
         finally:
             # save all data
-            # json.dump(experiments, f, ensure_ascii=False, indent=4)
-            # save(secrets, f'{out_directory}/secret_{args.guessable}.sobj')
-            # save(bases, f'{out_directory}/basis_{args.guessable}.sobj')
-            f.write("]")
+            f.write(f"{json.dumps(bkz_beta)}\n]")
             f.close()
             sys.exit(0)
 
