@@ -2,17 +2,21 @@ import numpy as np
 from numpy.random import seed as np_seed
 import sys
 import argparse
+import toml
 from argparse import ArgumentParser
 from pathlib import Path
 from shutil import rmtree
 from sage.rings.generic import ProductTree
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from multiprocessing import cpu_count
+from collections import namedtuple
 
 sys.stdout.reconfigure(line_buffering=True)
 
 load("../framework/LWE.sage")
 load("../framework/utils.sage")
+
+Experiment = namedtuple("Experiment", ["guesses", "num", "noise", "seed"])
 
 def get_argparse() -> ArgumentParser:
     def validate_file(arg: str) -> Path:
@@ -24,10 +28,11 @@ def get_argparse() -> ArgumentParser:
 
     # performs <num-experiments> iterations at <guessable> guesses
     parser = ArgumentParser()
-    # parser.add_argument("experiment_file", type=validate_file) # future testing
-    parser.add_argument("--guessable", type=int, default=64)
-    parser.add_argument("--num-experiments", type=int, default=100)
-    # parser.add_argument("--noise", type=float, default=1) # future testing
+    parser.add_argument("experiment_file", type=validate_file)
+    parser.add_argument("--guessable", type=int)
+    parser.add_argument("--num-experiments", type=int)
+    parser.add_argument("--noise", type=float, default=1)
+    parser.add_argument("--linear", action='store_true')
     return parser
 
 def mkdir(path: str, clear=True) -> Path:
@@ -37,6 +42,23 @@ def mkdir(path: str, clear=True) -> Path:
     p.mkdir(parents=True, exist_ok=not clear)
     return p
 
+def experiment_from_toml(obj):
+    return Experiment(
+        guesses=obj["guesses"],
+        num=obj["num"],
+        noise=obj["noise"] if "noise" in obj else 1,
+        seed=obj["seed"],
+    )
+
+def experiment_from_args(arg_list):
+    if not arg_list:
+        return None
+    return Experiment(
+        guesses=arg_list.guesses,
+        num=arg_list.num_experiments,
+        noise=arg_list.noise,
+        seed=arg_list.seed,
+    )
 
 q = 3329
 
@@ -448,7 +470,7 @@ def conv_info(ciphertext_ntt, means_cs, variances_cs, secret_ntt=None):
     return (dE, dO, means_list, variances_list)
 
 
-def simulation_test(exp_id, guessable):
+def simulation_test(exp_id, guessable, noise):
     #skpv, bhat, means, variances = load_data(filename)
 
     # deterministic randomization
@@ -484,8 +506,7 @@ def simulation_test(exp_id, guessable):
 
         # Simulated variance, much more than normal
         #D_s = build_centered_binomial_law(1)
-        D_s = build_Gaussian_law(1, 50)
-        # D_s = build_Gaussian_law(args.noise, 50) # for future testing
+        D_s = build_Gaussian_law(noise, 50)
         out_val = draw_from_distribution(D_s)
         #mean, var = average_variance(D_s)
         print ("added noise", out_val)
@@ -495,16 +516,15 @@ def simulation_test(exp_id, guessable):
     return skpv, bhat, means, variances
 
 
-def do_attack(exp_id, guessable):
+def do_attack(exp_id, guessable, noise):
 
     F = GF(3329)
     q = 3329
 
     # skpv, bhat, means, variances = load_data(filename)
 
-    guesses = guessable # args.guessable # 38 
-
-    skpv, bhat, means, variances = simulation_test(exp_id, guesses)
+    guesses = guessable
+    skpv, bhat, means, variances = simulation_test(exp_id, guesses, noise)
 
     dbdd_E, dbdd_O, means_list, variances_list = conv_info(bhat, means, variances, secret_ntt=skpv)
 
@@ -632,46 +652,109 @@ def do_attack(exp_id, guessable):
         }
     } | results), secret_vecs, basis_vecs
 
+def run_instance(exp_id, guessable, noise):
+    try:
+        return do_attack(exp_id, guessable, noise)
+    except AssertionError:
+        # signify invalid instance
+        return -1, None, None, None
 
 if __name__ == "__main__":
+    # obtain experiment parameters
+    experiments = None
     args = get_argparse().parse_args()
-    # future testing
-    # with open(args.experiment_file) as f:
-    #     expr_file = toml.loads(f.read())
-
+    if args.experiment_file is not None:
+        with open(args.experiment_file) as f:
+            expr_file = toml.loads(f.read())
+        experiments = [
+            experiment_from_toml(expr)
+            for expr in expr_file["experiments"]
+        ]
+    else:
+        experiments = [experiment_from_args(args)]
+    assert experiments is not None
     
     out_directory = "out"
-    secret_directory = f"out/secrets-{args.guessable}"
-    basis_directory = f"out/bases-{args.guessable}"
-    mkdir(out_directory, clear=False)
-    mkdir(secret_directory, clear=True)
-    mkdir(basis_directory, clear=True)
-    with open(f"{out_directory}/results_{args.guessable}.json", "w", encoding='utf-8') as f, \
-            ProcessPoolExecutor(max_workers=cpu_count()) as pool:
-        f.write("[\n")
-        try:
-            # collect results for num_experiments iterations
-            queue = []
-            bkz_beta = []
-            for i in range(args.num_experiments):
-                future = pool.submit(do_attack, exp_id=i, guessable=args.guessable)
-                queue.append(future)
-            for future in as_completed(queue):
-                exp_id, result, secret_vec, basis_vecs = future.result()
-                if result["outcome"] == "SUCCESS":
-                    bkz_beta.append([result["est"]["beta"], result["BKZ"]])
-                # export data in JSON format and sage matrix
-                f.write(f"{json.dumps(result, indent=4)},\n")
-                save(secret_vec, f"{secret_directory}/secret_{exp_id:0>2}.sobj")
-                save(basis_vecs, f"{basis_directory}/secret_{exp_id:0>2}.sobj")
-            print("closing")
-        except Exception as e:
-            from traceback import print_exc
-            print("unknown exception")
-            print_exc()
-        finally:
-            # save all data
-            f.write(f"{json.dumps(bkz_beta)}\n]")
-            f.close()
-            sys.exit(0)
+    for expr in experiments:
+        secret_directory = f"out/secrets-{expr.guesses}"
+        basis_directory = f"out/bases-{expr.guesses}"
+        mkdir(out_directory, clear=False)
+        mkdir(secret_directory, clear=True)
+        mkdir(basis_directory, clear=True)
+        with open(f"{out_directory}/results_{expr.guesses}.json", "w", encoding='utf-8') as f, \
+                ProcessPoolExecutor(max_workers=cpu_count()) as pool:
+            f.write("[\n")
+            try:
+                # collect results for num_experiments iterations
+                queue = []
+                bkz_beta = []
+                unsolvable = 0
+                success_count = 0
+                fail_count = 0
+
+                # multiprocessing
+
+                if not args.linear:
+                    for i in range(expr.num):
+                        future = pool.submit(run_instance,
+                            exp_id=i,
+                            guessable=expr.guesses,
+                            noise=expr.noise
+                        )
+                        queue.append(future)
+                    for future in as_completed(queue):
+                        exp_id, result, secret_vec, basis_vecs = future.result()
+                        if exp_id != -1:
+                            if result["outcome"] == "SUCCESS":
+                                bkz_beta.append([result["est"]["beta"], result["BKZ"]])
+                            # export data in JSON format and sage matrix
+                            f.write(f"{json.dumps(result, indent=4)},\n")
+                            save(secret_vec, f"{secret_directory}/secret_{exp_id:0>2}.sobj")
+                            save(basis_vecs, f"{basis_directory}/basis_{exp_id:0>2}.sobj")
+
+                            # collect result data
+                            if result["outcome"] == "SUCCESS":
+                                success_count += 1
+                            else:
+                                fail_count += 1
+                        else:
+                            unsolvable += 1
+                            print("Unsolvable instance!")
+
+                # linear
+
+                else:
+                    for i in range(expr.num):
+                        future = run_instance(
+                            exp_id=i, 
+                            guessable=expr.guesses, 
+                            noise=expr.noise,
+                        )
+                        exp_id, result, secret_vec, basis_vecs = future
+                        if exp_id != -1:
+                            if result["outcome"] == "SUCCESS":
+                                bkz_beta.append([result["est"]["beta"], result["BKZ"]])
+                                success_count += 1
+                            else:
+                                fail_count += 1
+                            # export data in JSON format and sage matrix
+                            f.write(f"{json.dumps(result, indent=4)},\n")
+                            save(secret_vec, f"{secret_directory}/secret_{exp_id:0>2}.sobj")
+                            save(basis_vecs, f"{basis_directory}/basis_{exp_id:0>2}.sobj")
+                        else:
+                            unsolvable += 1
+                            print("Unsolvable instance!")
+
+                print("closing")
+            except Exception as e:
+                from traceback import print_exc
+                print("unknown exception")
+                print_exc()
+            finally:
+                # save all data
+                f.write(f"{json.dumps(bkz_beta)}\n]")
+                f.close()
+                print(f"successes: {success_count}\t failures: {fail_count}\tunsolvable: {unsolvable}\ttotal: {expr.num}")
+                print(f"Completed at {expr.guesses} guessable")
+    sys.exit(0)
 
