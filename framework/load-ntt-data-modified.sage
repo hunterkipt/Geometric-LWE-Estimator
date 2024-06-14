@@ -2,7 +2,7 @@ import numpy as np
 from numpy.random import seed as np_seed
 import sys
 import argparse
-import toml
+import json
 from argparse import ArgumentParser
 from pathlib import Path
 from shutil import rmtree
@@ -16,7 +16,7 @@ sys.stdout.reconfigure(line_buffering=True)
 load("../framework/LWE.sage")
 load("../framework/utils.sage")
 
-Experiment = namedtuple("Experiment", ["guesses", "num", "noise", "seed"])
+Experiment = namedtuple("Experiment", ["guesses", "num", "noise", "seedgen"])
 
 def get_argparse() -> ArgumentParser:
     def validate_file(arg: str) -> Path:
@@ -26,13 +26,14 @@ def get_argparse() -> ArgumentParser:
         else:
             raise FileNotFoundError(f"{arg} is not a valid file")
 
-    # performs <num-experiments> iterations at <guessable> guesses
+    # performs <num-iterations> iterations at <guesses> guesses
     parser = ArgumentParser()
-    parser.add_argument("experiment_file", type=validate_file)
-    parser.add_argument("--guessable", type=int)
-    parser.add_argument("--num-experiments", type=int)
+    parser.add_argument("experiment_file", type=validate_file, nargs = "?")
+    parser.add_argument("--guesses", type=int, default=64)
+    parser.add_argument("--num-iterations", type=int, default=1)
     parser.add_argument("--noise", type=float, default=1)
-    parser.add_argument("--linear", action='store_true')
+    parser.add_argument("--seedgen", type=int)
+    parser.add_argument("--singlethreaded", action='store_true')
     return parser
 
 def mkdir(path: str, clear=True) -> Path:
@@ -42,22 +43,28 @@ def mkdir(path: str, clear=True) -> Path:
     p.mkdir(parents=True, exist_ok=not clear)
     return p
 
-def experiment_from_toml(obj):
+def experiment_from_json(obj):
     return Experiment(
         guesses=obj["guesses"],
-        num=obj["num"],
+        num=obj["num-iterations"],
         noise=obj["noise"] if "noise" in obj else 1,
-        seed=obj["seed"],
+        seedgen=obj["seedgen"] if "seedgen" in obj else randint(0, 1 << 8),
     )
 
 def experiment_from_args(arg_list):
     if not arg_list:
         return None
+
+    if arg_list.seedgen is not None:
+        seedgen = arg_list.seedgen
+    else:
+        seedgen = randint(0, 1 << 8)
+
     return Experiment(
         guesses=arg_list.guesses,
-        num=arg_list.num_experiments,
+        num=arg_list.num_iterations,
         noise=arg_list.noise,
-        seed=arg_list.seed,
+        seedgen=seedgen,
     )
 
 q = 3329
@@ -105,21 +112,14 @@ def gen_u_matrix(u):
     F = Zmod(3329)
     gen = F(17)
     block_list = []
-    block_list2 = []
     for i in range(0, 128):
         c = u[2*i]
         d = u[2*i + 1]
         block = matrix(F, 2, 2, [[c, d * (gen^(2 * bit_reverse_7(i) + 1))], [d, c]])
         block_list.append(block)
-        if (c == 0 and d == 0):
-            block2 = matrix(F, 2, 2)
-        else:
-            block2 = block.inverse()
-        block_list2.append(block2)
 
     U = block_diagonal_matrix(block_list)
-    U_inv = block_diagonal_matrix(block_list2)
-    return U, U_inv
+    return U
 
 def gen_half_ntt_matrix():
     F = GF(3329)
@@ -164,7 +164,7 @@ def generate_ntt_instance(ciphertext_ntt, secret_ntt=None):
 
     ct_ntt = [F(i) for i in ciphertext_ntt[0]]
 
-    U, U_inv  = gen_u_matrix(ct_ntt)
+    U = gen_u_matrix(ct_ntt)
 
     # Inverse. In the first 64 case, this will be the inverse of U but with blocks only for the first 64:
     # [ a b ....... ]
@@ -172,8 +172,7 @@ def generate_ntt_instance(ciphertext_ntt, secret_ntt=None):
     # [ ... a b ... ]
     # [ ... c d ... ]
     # ...
-    #U_i = U.pseudoinverse().T
-    U_i = U_inv.T
+    U_i = U.pseudoinverse().T
 
     # The full matrix for each of the even and the odd parts of the secret polynomial
     # Looks like this:
@@ -188,11 +187,6 @@ def generate_ntt_instance(ciphertext_ntt, secret_ntt=None):
     U_E_full = U_i.matrix_from_columns([2*i for i in range(U_i.dimensions()[1] // 2)]) 
     U_O_full = U_i.matrix_from_columns([2*i + 1 for i in range(U_i.dimensions()[1] // 2)])
 
-    Ut = U.T
-
-    U_E_full_inv = Ut.matrix_from_rows([2*i for i in range(Ut.dimensions()[1] // 2)])
-    U_O_full_inv = Ut.matrix_from_rows([2*i + 1 for i in range(Ut.dimensions()[1] // 2)])
-
     # Pi_(UE) and Pi_(UO)
     # In the first 64 case, will be the 32 dim identity and 0 everywhere else for each one
     # [ 1  ..... ]
@@ -202,8 +196,8 @@ def generate_ntt_instance(ciphertext_ntt, secret_ntt=None):
     # Note that these should be the same - either a U block is 0 or not.
     # Therefore, the projection at a single point is determined by that block, which is identical in both.
 
-    proj_U_E = U_E_full_inv * U_E_full
-    proj_U_O = U_O_full_inv * U_O_full
+    proj_U_E = U_E_full.pseudoinverse() * U_E_full
+    proj_U_O = U_O_full.pseudoinverse() * U_O_full
 
     # NTT matrix for the NTT transformation in the Kyber field.
     V = gen_full_ntt_matrix() 
@@ -470,12 +464,14 @@ def conv_info(ciphertext_ntt, means_cs, variances_cs, secret_ntt=None):
     return (dE, dO, means_list, variances_list)
 
 
-def simulation_test(exp_id, guessable, noise):
+def simulation_test(seed, guesses, noise):
     #skpv, bhat, means, variances = load_data(filename)
 
+
     # deterministic randomization
-    set_random_seed(exp_id)
-    np_seed(seed=exp_id)
+    set_random_seed(seed)
+    assert (initial_seed() == seed)
+    np_seed(seed=seed)
 
     F = GF(3329)
     q = 3329
@@ -488,9 +484,17 @@ def simulation_test(exp_id, guessable, noise):
     skpv = list(skpv_mat[0])
 
 
-    bhat1 = [randint(1, 3328) for _ in range(64)]
-    bhat2 = [0 for _ in range(192)]
+    bhat1 = [F.random_element() for _ in range(64)]
+
+    for i in range(64):
+        while bhat1[i] == F(0):
+            bhat1[i] = F.random_element()
+
+
+    bhat2 = [F(0) for _ in range(192)]
     bhat = bhat1 + bhat2
+
+    bhat = [int(i) for i in bhat]
 
     prod = [QQ((i*169) % 3329) for i in pairwise_mult(skpv, bhat)]
 
@@ -502,7 +506,7 @@ def simulation_test(exp_id, guessable, noise):
 
     variances = [0 for _ in range(256)]
 
-    for i in range(64 - guessable):
+    for i in range(64 - guesses):
 
         # Simulated variance, much more than normal
         #D_s = build_centered_binomial_law(1)
@@ -516,22 +520,20 @@ def simulation_test(exp_id, guessable, noise):
     return skpv, bhat, means, variances
 
 
-def do_attack(exp_id, guessable, noise):
+def do_attack(seed, guesses, noise):
 
     F = GF(3329)
     q = 3329
 
     # skpv, bhat, means, variances = load_data(filename)
 
-    guesses = guessable
-    skpv, bhat, means, variances = simulation_test(exp_id, guesses, noise)
+    skpv, bhat, means, variances = simulation_test(seed, guesses, noise)
 
     dbdd_E, dbdd_O, means_list, variances_list = conv_info(bhat, means, variances, secret_ntt=skpv)
 
 
     dbdd_E.estimate_attack()
 
-    dbdd_E.estimate_attack()
 
     # print("Integrating zeroes ...")
 
@@ -652,9 +654,14 @@ def do_attack(exp_id, guessable, noise):
         }
     } | results), secret_vecs, basis_vecs
 
-def run_instance(exp_id, guessable, noise):
+def run_instance(seedgen, iter_id, guessable, noise):
+
+    seed_for_instance = (int(seedgen) << int(16)) + iter_id
+
+    print(seed_for_instance)
+
     try:
-        return do_attack(exp_id, guessable, noise)
+        return do_attack(seed_for_instance, guessable, noise)
     except AssertionError:
         # signify invalid instance
         return -1, None, None, None
@@ -665,9 +672,9 @@ if __name__ == "__main__":
     args = get_argparse().parse_args()
     if args.experiment_file is not None:
         with open(args.experiment_file) as f:
-            expr_file = toml.loads(f.read())
+            expr_file = json.loads(f.read())
         experiments = [
-            experiment_from_toml(expr)
+            experiment_from_json(expr)
             for expr in expr_file["experiments"]
         ]
     else:
@@ -694,23 +701,24 @@ if __name__ == "__main__":
 
                 # multiprocessing
 
-                if not args.linear:
+                if not args.singlethreaded:
                     for i in range(expr.num):
                         future = pool.submit(run_instance,
-                            exp_id=i,
+                            seedgen=expr.seedgen,
+                            iter_id=i,
                             guessable=expr.guesses,
                             noise=expr.noise
                         )
                         queue.append(future)
                     for future in as_completed(queue):
-                        exp_id, result, secret_vec, basis_vecs = future.result()
-                        if exp_id != -1:
+                        iter_id, result, secret_vec, basis_vecs = future.result()
+                        if iter_id != -1:
                             if result["outcome"] == "SUCCESS":
                                 bkz_beta.append([result["est"]["beta"], result["BKZ"]])
                             # export data in JSON format and sage matrix
                             f.write(f"{json.dumps(result, indent=4)},\n")
-                            save(secret_vec, f"{secret_directory}/secret_{exp_id:0>2}.sobj")
-                            save(basis_vecs, f"{basis_directory}/basis_{exp_id:0>2}.sobj")
+                            save(secret_vec, f"{secret_directory}/secret_{iter_id:0>2}.sobj")
+                            save(basis_vecs, f"{basis_directory}/basis_{iter_id:0>2}.sobj")
 
                             # collect result data
                             if result["outcome"] == "SUCCESS":
@@ -726,12 +734,13 @@ if __name__ == "__main__":
                 else:
                     for i in range(expr.num):
                         future = run_instance(
-                            exp_id=i, 
+                            seedgen=expr.seedgen,
+                            iter_id=i, 
                             guessable=expr.guesses, 
                             noise=expr.noise,
                         )
-                        exp_id, result, secret_vec, basis_vecs = future
-                        if exp_id != -1:
+                        iter_id, result, secret_vec, basis_vecs = future
+                        if iter_id != -1:
                             if result["outcome"] == "SUCCESS":
                                 bkz_beta.append([result["est"]["beta"], result["BKZ"]])
                                 success_count += 1
@@ -739,8 +748,8 @@ if __name__ == "__main__":
                                 fail_count += 1
                             # export data in JSON format and sage matrix
                             f.write(f"{json.dumps(result, indent=4)},\n")
-                            save(secret_vec, f"{secret_directory}/secret_{exp_id:0>2}.sobj")
-                            save(basis_vecs, f"{basis_directory}/basis_{exp_id:0>2}.sobj")
+                            save(secret_vec, f"{secret_directory}/secret_{iter_id:0>2}.sobj")
+                            save(basis_vecs, f"{basis_directory}/basis_{iter_id:0>2}.sobj")
                         else:
                             unsolvable += 1
                             print("Unsolvable instance!")
