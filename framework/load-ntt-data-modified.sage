@@ -11,6 +11,8 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from multiprocessing import cpu_count
 from collections import namedtuple
 
+REPRODUCE = None
+
 sys.stdout.reconfigure(line_buffering=True)
 
 load("../framework/LWE.sage")
@@ -33,6 +35,7 @@ def get_argparse() -> ArgumentParser:
     parser.add_argument("--num-iterations", type=int, default=1)
     parser.add_argument("--noise", type=float, default=1)
     parser.add_argument("--seedgen", type=int)
+    parser.add_argument("--reproduce", type=int, nargs = "?")
     parser.add_argument("--singlethreaded", action='store_true')
     return parser
 
@@ -52,11 +55,17 @@ def experiment_from_json(obj):
     )
 
 def experiment_from_args(arg_list):
+
+    global REPRODUCE
+
     if not arg_list:
         return None
 
     if arg_list.seedgen is not None:
         seedgen = arg_list.seedgen
+    elif arg_list.reproduce is not None:
+        REPRODUCE = arg_list.reproduce
+        seedgen = -1
     else:
         seedgen = randint(0, 1 << 8)
 
@@ -490,7 +499,6 @@ def simulation_test(seed, guesses, noise):
         while bhat1[i] == F(0):
             bhat1[i] = F.random_element()
 
-
     bhat2 = [F(0) for _ in range(192)]
     bhat = bhat1 + bhat2
 
@@ -520,14 +528,14 @@ def simulation_test(seed, guesses, noise):
     return skpv, bhat, means, variances
 
 
-def do_attack(seed, guesses, noise):
+def do_attack(seed, guessable, noise):
 
     F = GF(3329)
     q = 3329
 
     # skpv, bhat, means, variances = load_data(filename)
 
-    skpv, bhat, means, variances = simulation_test(seed, guesses, noise)
+    skpv, bhat, means, variances = simulation_test(seed, guessable, noise)
 
     dbdd_E, dbdd_O, means_list, variances_list = conv_info(bhat, means, variances, secret_ntt=skpv)
 
@@ -594,6 +602,9 @@ def do_attack(seed, guesses, noise):
 
     print("Done!")
 
+
+    beta_before_short, delta_before_short = dbdd_E.estimate_attack()
+
     print("Integrating pathological short vectors...")
 
     # sets lower threshold for the dimension
@@ -642,21 +653,28 @@ def do_attack(seed, guesses, noise):
 
     print("Done!")
 
-    # store final results in JSON
+    # store final results in JSONi gotta do some work but was 
     beta, delta = dbdd_E.estimate_attack()
     results, secret_vecs, basis_vecs = dbdd_E.attack()
-    return exp_id, ({
-        "exp_id": exp_id,
+    return seed, ({
+        "seed": seed,
         "est": {
             "dim": dbdd_E.dim(),
             "delta": float(delta),
-            "beta": float(beta)
+            "beta": float(beta),
+            "beta_before_short": float(beta_before_short),
+            "delta_before_short": float(delta_before_short)
         }
     } | results), secret_vecs, basis_vecs
 
 def run_instance(seedgen, iter_id, guessable, noise):
 
-    seed_for_instance = (int(seedgen) << int(16)) + iter_id
+    global REPRODUCE
+
+    if REPRODUCE is not None:
+        seed_for_instance = REPRODUCE
+    else:
+        seed_for_instance = (int(seedgen) << int(16)) + iter_id
 
     print(seed_for_instance)
 
@@ -766,4 +784,3 @@ if __name__ == "__main__":
                 print(f"successes: {success_count}\t failures: {fail_count}\tunsolvable: {unsolvable}\ttotal: {expr.num}")
                 print(f"Completed at {expr.guesses} guessable")
     sys.exit(0)
-
