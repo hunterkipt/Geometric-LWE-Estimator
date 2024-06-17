@@ -1,0 +1,8 @@
+{"experiments": [
+    {
+        "guesses": 55,
+        "num-iterations": 1,
+        "noise": 1,
+        "seedgen": 35
+    }
+]}

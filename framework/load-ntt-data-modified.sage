@@ -653,7 +653,7 @@ def do_attack(seed, guessable, noise):
 
     print("Done!")
 
-    # store final results in JSONi gotta do some work but was 
+    # store final results in JSON
     beta, delta = dbdd_E.estimate_attack()
     results, secret_vecs, basis_vecs = dbdd_E.attack()
     return seed, ({
@@ -713,6 +713,7 @@ if __name__ == "__main__":
                 # collect results for num_experiments iterations
                 queue = []
                 bkz_beta = []
+                bkz_beta_no_short = []
                 unsolvable = 0
                 success_count = 0
                 fail_count = 0
@@ -733,6 +734,7 @@ if __name__ == "__main__":
                         if iter_id != -1:
                             if result["outcome"] == "SUCCESS":
                                 bkz_beta.append([result["est"]["beta"], result["BKZ"]])
+                                bkz_beta_no_short.append([result["est"]["beta_before_short"], result["BKZ"]])
                             # export data in JSON format and sage matrix
                             f.write(f"{json.dumps(result, indent=4)},\n")
                             save(secret_vec, f"{secret_directory}/secret_{iter_id:0>2}.sobj")
@@ -761,6 +763,7 @@ if __name__ == "__main__":
                         if iter_id != -1:
                             if result["outcome"] == "SUCCESS":
                                 bkz_beta.append([result["est"]["beta"], result["BKZ"]])
+                                bkz_beta_no_short.append([result["est"]["beta_before_short"], result["BKZ"]])
                                 success_count += 1
                             else:
                                 fail_count += 1
@@ -780,6 +783,7 @@ if __name__ == "__main__":
             finally:
                 # save all data
                 f.write(f"{json.dumps(bkz_beta)}\n]")
+                f.write(f"{json.dumps(bkz_beta_no_short)}\n]")
                 f.close()
                 print(f"successes: {success_count}\t failures: {fail_count}\tunsolvable: {unsolvable}\ttotal: {expr.num}")
                 print(f"Completed at {expr.guesses} guessable")
