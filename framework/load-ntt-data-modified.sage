@@ -587,7 +587,7 @@ def do_attack(seed, guessable, noise):
 
     for i in range(0, 32):
         #print("I: ", i)
-        if (variances_list[i] > 2/10 and variances_list[i] < 2):
+        if (variances_list[i] > 1/50):
             continue
 
         prod_vec = [0] * (256 + 128)
@@ -602,7 +602,7 @@ def do_attack(seed, guessable, noise):
 
     for i in range(128, 256):
         #print("I: ", i)
-        if variances_list[i] > 1/10:
+        if variances_list[i] > 1/50:
             continue
 
         prod_vec = [0] * (256 + 128)
