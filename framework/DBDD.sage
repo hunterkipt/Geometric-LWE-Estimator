@@ -493,7 +493,8 @@ class DBDD(DBDD_generic):
                                  style="SUCCESS")
                     self.logging("")
                     # return None, None
-                    return basis | { "outcome" : "FAILURE" }, secret_vec, basis_vecs
+                    # return basis | { "outcome" : "FAILURE" }, secret_vec, basis_vecs
+                    return -1, secret_vec, basis_vecs
 
             if beta == 2:
                 bkz.lll_obj()
@@ -507,10 +508,7 @@ class DBDD(DBDD_generic):
             print(self.u)
             print("Secret key norm: ", float((self.u).norm()))
             # Stores full basis for either successful or final beta value
-            basis = { "first secret" : first_secret }
             basis["BKZ"] = beta
-            basis["secret"] = str(self.u)
-            basis["secret_norm"] = float((self.u).norm())
             secret_vec = self.u # for sage matrix export
             basis_vecs = []
             # Tries all 3 first vectors because of 2 NTRU parasite vectors
@@ -523,8 +521,8 @@ class DBDD(DBDD_generic):
                 print(f"Solution {j}:")
                 print(solution)
                 print("Solution norm: ", float(solution.norm()))
-                basis[f"v{j:0>3}"] = str(solution)
-                basis[f"v{j:0>3}_norm"] = float(solution.norm())
+                # basis[f"v{j:0>3}"] = str(solution)
+                # basis[f"v{j:0>3}_norm"] = float(solution.norm())
                 basis_vecs.append(solution) # for sage matrix export
                 #with open("outvecs.txt", "a") as f:
                 #    f.write(str(list(solution)))
@@ -551,9 +549,11 @@ class DBDD(DBDD_generic):
                 continue
             self.logging("Success !", style="SUCCESS")
             self.logging("")
-            return basis | { "outcome" : "SUCCESS" }, secret_vec, basis_vecs
+            # return basis | { "outcome" : "SUCCESS" }, secret_vec, basis_vecs
+            return basis["BKZ"], secret_vec, basis_vecs
 
         self.logging("Failure ...", style="FAILURE")
         self.logging("")
         # return None, None
-        return basis | { "outcome" : "FAILURE" }, secret_vec, basis_vecs
+        # return basis | { "outcome" : "FAILURE" }, secret_vec, basis_vecs
+        return -1, secret_vec, basis_vecs

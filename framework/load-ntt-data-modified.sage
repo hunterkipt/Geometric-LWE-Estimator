@@ -669,17 +669,19 @@ def do_attack(seed, guessable, noise):
 
     # store final results in JSON
     beta, delta = dbdd_E.estimate_attack()
-    results, secret_vecs, basis_vecs = dbdd_E.attack()
-    return seed, ({
+    bkz, secret_vecs, basis_vecs = dbdd_E.attack(randomize=True)
+    return seed, {
         "seed": seed,
         "est": {
             "dim": dbdd_E.dim(),
             "delta": float(delta),
             "beta": float(beta),
-            "beta_before_short": float(beta_before_short),
-            "delta_before_short": float(delta_before_short)
-        }
-    } | results), secret_vecs, basis_vecs
+            "delta_before_short": float(delta_before_short),
+            "beta_before_short": float(beta_before_short)
+        },
+        "BKZ": int(bkz) if bkz != -1 else int(dbdd_E.dim()),
+        "outcome": int(1) if bkz != -1 else int(0)
+    }, secret_vecs, basis_vecs
 
 def run_instance(seedgen, iter_id, guessable, noise):
 
@@ -715,11 +717,13 @@ if __name__ == "__main__":
     
     out_directory = "out"
     for expr in experiments:
-        secret_directory = f"out/secrets-{expr.guesses}"
-        basis_directory = f"out/bases-{expr.guesses}"
+        # secret_directory = f"out/secrets-{expr.guesses}"
+        # basis_directory = f"out/bases-{expr.guesses}"
+        vecs_directory = f"out/vecs-{expr.guesses}"
         mkdir(out_directory, clear=False)
-        mkdir(secret_directory, clear=True)
-        mkdir(basis_directory, clear=True)
+        mkdir(vecs_directory, clear=False)
+        # mkdir(secret_directory, clear=True)
+        # mkdir(basis_directory, clear=True)
         with open(f"{out_directory}/results_{expr.guesses}.json", "w", encoding='utf-8') as f, \
                 ProcessPoolExecutor(max_workers=cpu_count()) as pool:
             f.write("[\n")
@@ -727,7 +731,6 @@ if __name__ == "__main__":
                 # collect results for num_experiments iterations
                 queue = []
                 bkz_beta = []
-                bkz_beta_no_short = []
                 unsolvable = 0
                 success_count = 0
                 fail_count = 0
@@ -745,23 +748,23 @@ if __name__ == "__main__":
                         queue.append(future)
                     for future in as_completed(queue):
                         iter_id, result, secret_vec, basis_vecs = future.result()
-                        if iter_id != -1:
-                            if result["outcome"] == "SUCCESS":
-                                bkz_beta.append([result["est"]["beta"], result["BKZ"]])
-                                bkz_beta_no_short.append([result["est"]["beta_before_short"], result["BKZ"]])
-                            # export data in JSON format and sage matrix
-                            f.write(f"{json.dumps(result, indent=4)},\n")
-                            save(secret_vec, f"{secret_directory}/secret_{iter_id:0>2}.sobj")
-                            save(basis_vecs, f"{basis_directory}/basis_{iter_id:0>2}.sobj")
-
-                            # collect result data
-                            if result["outcome"] == "SUCCESS":
-                                success_count += 1
-                            else:
-                                fail_count += 1
-                        else:
+                        if iter_id == -1: # failed due to error
                             unsolvable += 1
                             print("Unsolvable instance!")
+                        if result["outcome"] == 0: # failed due to reaching max BKZ
+                            fail_count += 1
+                        else:   # succeeded
+                            success_count += 1
+                            bkz_beta.append([result["est"]["beta"], 
+                                             result["est"]["beta_before_short"], 
+                                             result["BKZ"]])
+                        # export data in JSON format and sage matrix
+                        f.write(f"{json.dumps(result, indent=4)},\n")
+                        # save(secret_vec, f"{secret_directory}/secret_{iter_id:0>2}.sobj")
+                        # save(basis_vecs, f"{basis_directory}/basis_{iter_id:0>2}.sobj")
+                        result_vecs = [secret_vec] + basis_vecs
+                        save(result_vecs, 
+                             f"{vecs_directory}/basis_{iter_id:0>2}.sobj")
 
                 # linear
 
@@ -774,20 +777,23 @@ if __name__ == "__main__":
                             noise=expr.noise,
                         )
                         iter_id, result, secret_vec, basis_vecs = future
-                        if iter_id != -1:
-                            if result["outcome"] == "SUCCESS":
-                                bkz_beta.append([result["est"]["beta"], result["BKZ"]])
-                                bkz_beta_no_short.append([result["est"]["beta_before_short"], result["BKZ"]])
-                                success_count += 1
-                            else:
-                                fail_count += 1
-                            # export data in JSON format and sage matrix
-                            f.write(f"{json.dumps(result, indent=4)},\n")
-                            save(secret_vec, f"{secret_directory}/secret_{iter_id:0>2}.sobj")
-                            save(basis_vecs, f"{basis_directory}/basis_{iter_id:0>2}.sobj")
-                        else:
+                        if iter_id == -1:   # failed due to error
                             unsolvable += 1
                             print("Unsolvable instance!")
+                        if result["outcome"] != "SUCCESS":  # failed due to reaching max BKZ
+                            fail_count += 1
+                        else:
+                            success_count += 1
+                            bkz_beta.append([result["est"]["beta"], 
+                                             result["est"]["beta_before_short"], 
+                                             result["BKZ"]])
+                        # export data in JSON format and sage matrix
+                        f.write(f"{json.dumps(result, indent=4)},\n")
+                        # save(secret_vec, f"{secret_directory}/secret_{iter_id:0>2}.sobj")
+                        # save(basis_vecs, f"{basis_directory}/basis_{iter_id:0>2}.sobj")
+                        result_vecs = [secret_vec] + basis_vecs
+                        save(result_vecs, 
+                             f"{vecs_directory}/basis_{iter_id:0>2}.sobj")
 
                 print("closing")
             except Exception as e:
@@ -797,8 +803,11 @@ if __name__ == "__main__":
             finally:
                 # save all data
                 f.write(f"{json.dumps(bkz_beta)}\n]")
-                f.write(f"{json.dumps(bkz_beta_no_short)}\n]")
                 f.close()
-                print(f"successes: {success_count}\t failures: {fail_count}\tunsolvable: {unsolvable}\ttotal: {expr.num}")
+                print(
+                    f"successes: {success_count}\t"
+                    f"failures: {fail_count}\t"
+                    f"unsolvable: {unsolvable}\t"
+                    f"total: {expr.num}")
                 print(f"Completed at {expr.guesses} guessable")
     sys.exit(0)
