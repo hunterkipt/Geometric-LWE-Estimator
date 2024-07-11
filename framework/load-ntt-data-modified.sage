@@ -12,6 +12,7 @@ from multiprocessing import cpu_count
 from collections import namedtuple
 
 REPRODUCE = None
+DEBUG = True
 
 sys.stdout.reconfigure(line_buffering=True)
 
@@ -46,13 +47,24 @@ def mkdir(path: str, clear=True) -> Path:
     p.mkdir(parents=True, exist_ok=not clear)
     return p
 
-def experiment_from_json(obj):
-    return Experiment(
-        guesses=obj["guesses"],
-        num=obj["num-iterations"],
-        noise=obj["noise"] if "noise" in obj else 1,
-        seedgen=obj["seedgen"] if "seedgen" in obj else randint(0, 1 << 8),
-    )
+def experiment_from_json(experiments):
+    exp_params = []
+    for obj in experiments:
+        for g in obj["guesses"]:
+            nz = obj.get("noise")
+            if nz is not None:
+                stp = (nz["stop"] - nz["start"]) / (nz["num"] - 1)
+                n_lvls = np.arange(nz["start"], nz["stop"] + stp, stp)
+            else:
+                n_lvls = np.ones((1,))
+
+            exp_params.append(Experiment(
+                guesses=g,
+                num=obj["num-iterations"],
+                noise=n_lvls,
+                seedgen=obj["seedgen"] if "seedgen" in obj else randint(0, 1 << 8),
+            ))
+    return exp_params
 
 def experiment_from_args(arg_list):
 
@@ -69,12 +81,14 @@ def experiment_from_args(arg_list):
     else:
         seedgen = randint(0, 1 << 8)
 
-    return Experiment(
-        guesses=arg_list.guesses,
-        num=arg_list.num_iterations,
-        noise=arg_list.noise,
-        seedgen=seedgen,
-    )
+    return [
+        Experiment(
+            guesses=arg_list.guesses,
+            num=arg_list.num_iterations,
+            noise=arg_list.noise,
+            seedgen=seedgen,
+        )
+    ]
 
 q = 3329
 
@@ -176,7 +190,8 @@ def generate_ntt_instance(ciphertext_ntt, secret_ntt=None):
     F = GF(3329)
     q = 3329
 
-    print("Starting generation of even and odd LWE matrices for the NTT repr.")
+    if DEBUG:
+        print("Starting generation of even and odd LWE matrices for the NTT repr.")
 
     ct_ntt = [F(i) for i in ciphertext_ntt[0]]
 
@@ -281,7 +296,8 @@ def generate_ntt_instance(ciphertext_ntt, secret_ntt=None):
     # Assert that the LWE instance functions properly.
     if secret_ntt is not None:
 
-        print("Checking validity...")
+        if DEBUG:
+            print("Checking validity...")
 
         s_ntt = [F(i) for i in secret_ntt[0]]
 
@@ -302,7 +318,8 @@ def generate_ntt_instance(ciphertext_ntt, secret_ntt=None):
         prod_part_e = [prod[2*i] for i in range(128)]
         prod_part_s = [prod[2*i + 1] for i in range(128)]
 
-        print ("prod_part_s", prod_part_s)
+        if DEBUG:
+            print ("prod_part_s", prod_part_s)
 
         # Check the output of the LWE computation.
         out_lwe_s_E = matrix(F, 1, 256, prod_part_s + s_E)
@@ -314,19 +331,34 @@ def generate_ntt_instance(ciphertext_ntt, secret_ntt=None):
         output_o = out_lwe_e_O + out_lwe_s_O * mat_O
 
         for i in output_e[0]:
-            assert i == 0
+            if i != 0:
+                print("Proj U_E: ", proj_U_E)
+                print("Proj U_O: ", proj_U_O)
+                print("Output E: ", output_e)
+                print(f"s_ntt: {s_ntt}\nct_ntt: {ct_ntt}\nU: {U}\nU_inv: {U_inv}\n")
+                print(f"mat_E: {mat_E}\nmat_O: {mat_O}\n")
+                assert i == 0
 
         for j in output_o[0]:
-            assert j == 0
+            if j != 0:
+                print("Proj U_E: ", proj_U_E)
+                print("Proj U_O: ", proj_U_O)
+                print("Output O: ", output_o)
+                print(f"s_ntt: {s_ntt}\nct_ntt: {ct_ntt}\nU: {U}\nU_inv: {U_inv}\n")
+                print(f"mat_E: {mat_E}\nmat_O: {mat_O}\n")
+                assert j == 0
 
-        print("Valid!")
+        if DEBUG:
+            print("Valid!")
 
-    print("Finished generation. ")
+    if DEBUG:
+        print("Finished generation. ")
 
     return ((mat_E, out_lwe_s_E, out_lwe_e_E), (mat_O, out_lwe_s_O, out_lwe_e_O))
 
 def embed_instance_into_dbdd(ciphertext_ntt, v_s_E, m_s_E, v_e_E, m_e_E, v_s_O, m_s_O, v_e_O, m_e_O, secret_ntt=None):
 
+    if DEBUG:
     print("Embedding into DBDD...")
 
     F = GF(3329)
@@ -359,11 +391,12 @@ def embed_instance_into_dbdd(ciphertext_ntt, v_s_E, m_s_E, v_e_E, m_e_E, v_s_O, 
         e_O = matrix(QQ, out_lwe_e_O).apply_map(recenter)
         e_O -= matrix(QQ, m_e_O)
 
-    print (matrix(F, s_E)) 
-    print (matrix(F, e_E)) 
-    print ()
-    print (matrix(F, s_E) * mat_E + matrix(F, e_E))
-    print (b_E)
+    if DEBUG:
+        print (matrix(F, s_E)) 
+        print (matrix(F, e_E)) 
+        print ()
+        print (matrix(F, s_E) * mat_E + matrix(F, e_E))
+        print (b_E)
 
     m_E = mat_E
     m_O = mat_O
@@ -406,7 +439,8 @@ def embed_instance_into_dbdd(ciphertext_ntt, v_s_E, m_s_E, v_e_E, m_e_E, v_s_O, 
     dbdd_E = lwe_E.embed_into_DBDD()
     dbdd_O = lwe_O.embed_into_DBDD()
 
-    print("Finished!")
+    if DEBUG:
+        print("Finished!")
 
     # Return dbdd instances
 
@@ -415,7 +449,8 @@ def embed_instance_into_dbdd(ciphertext_ntt, v_s_E, m_s_E, v_e_E, m_e_E, v_s_O, 
 
 def load_data(filename):
 
-    print("Loading data file...")
+    if DEBUG:
+        print("Loading data file...")
 
     data = np.load(filename, allow_pickle=True)
 
@@ -436,14 +471,16 @@ def load_data(filename):
         means.append(coeff_mean)
         variances.append(variance)
 
-    print("Loaded means and variances!")
+    if DEBUG:
+        print("Loaded means and variances!")
 
     return (skpv, bhat, means, variances)
 
 
 def conv_info(ciphertext_ntt, means_cs, variances_cs, secret_ntt=None):
 
-    print("Converting mean/var data into proper representation...")
+    if DEBUG
+        print("Converting mean/var data into proper representation...")
 
     # Split the variances into the error part and the part contained in the secret
     variances_cs_s = [variances_cs[2*i + 1] for i in range(128)]
@@ -472,16 +509,19 @@ def conv_info(ciphertext_ntt, means_cs, variances_cs, secret_ntt=None):
     variance_s = [QQ(i) if i > (1/100) else QQ(1/100) for i in variance_s]
     variance_e = [QQ(i) if i > (1/100) else QQ(1/100) for i in variance_e]
 
-    print("Variance_e: ", variance_e)
+    if DEBUG:
+        print("Variance_e: ", variance_e)
 
     # Full list of means / vars
     means_list = mean_e + mean_s
     variances_list = variance_e + variance_s
 
-    print("Done!")
+    if DEBUG:
+        print("Done!")
 
-    print ("mean_s", mean_s)
-    print ("var_s", variance_s)
+    if DEBUG:
+        print ("mean_s", mean_s)
+        print ("var_s", variance_s)
 
     dE, dO = embed_instance_into_dbdd(ciphertext_ntt, variance_s, mean_s, variance_e, mean_e, variance_s, mean_s, variance_e, mean_e, secret_ntt=secret_ntt)
     return (dE, dO, means_list, variances_list)
@@ -500,11 +540,14 @@ def simulation_test(seed, guesses, noise):
     q = 3329
 
     D_poly_s = build_centered_binomial_law(2)
-    spoly = vec([draw_from_distribution(D_poly_s) for _ in range(256)])
 
-    V_NTT = gen_full_ntt_matrix()
-    skpv_mat =  spoly * V_NTT.T
-    skpv = list(skpv_mat[0])
+    # Resample when s_hat is a zero vector
+    skpv = [0]*256
+    while not all(skpv[:64]):
+        spoly = vec([draw_from_distribution(D_poly_s) for _ in range(256)])
+        V_NTT = gen_full_ntt_matrix()
+        skpv_mat =  spoly * V_NTT.T
+        skpv = list(skpv_mat[0])
 
 
     bhat1 = [F.random_element() for _ in range(64)]
@@ -522,7 +565,8 @@ def simulation_test(seed, guesses, noise):
 
     means = matrix(prod).apply_map(recenter)
     means = list(means[0])
-    print("means: ", means)
+    if DEBUG:
+        print("means: ", means)
     skpv = matrix(QQ, skpv).apply_map(recenter)
     bhat = matrix(QQ, bhat).apply_map(recenter)
 
@@ -535,9 +579,10 @@ def simulation_test(seed, guesses, noise):
         D_s = build_Gaussian_law(noise, 50)
         out_val = draw_from_distribution(D_s)
         #mean, var = average_variance(D_s)
-        print ("added noise", out_val)
+        if DEBUG:
+            print ("added noise", out_val)
         means[i] = means[i] + out_val
-        variances[i] = 1 # is this wrong?
+        variances[i] = noise ** 2
 
     return skpv, bhat, means, variances
 
@@ -571,7 +616,8 @@ def do_attack(seed, guessable, noise):
 
     # print("Done!")
 
-    print("Integrating full guesses ... ")
+    if DEBUG:
+        print("Integrating full guesses ... ")
 
     guesses = 0
 
@@ -614,12 +660,13 @@ def do_attack(seed, guessable, noise):
         guesses += 1
         #print("Guesses: ", guesses)
 
-    print("Done!")
+    if DEBUG:
+        print("Done!")
 
 
-    beta_before_short, delta_before_short = dbdd_E.estimate_attack()
 
-    print("Integrating pathological short vectors...")
+    if DEBUG:
+        print("Integrating pathological short vectors...")
 
     # sets lower threshold for the dimension
     threshold = ceil((128+64-guessable)/2)
@@ -631,6 +678,10 @@ def do_attack(seed, guessable, noise):
         if (dbdd_E.dim() > threshold):
             dbdd_E.integrate_short_vector_hint(vec(prod_vec),  force = True)
 
+    beta_before_short, delta_before_short = dbdd_E.estimate_attack()
+
+    # TODO: run attack up to 85
+    # duplicate all objects up to here
 
 #    short_vec = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
@@ -665,13 +716,15 @@ def do_attack(seed, guessable, noise):
             dbdd_E.integrate_short_vector_hint(matrix(QQ, matrix(F, short_vec)).apply_map(recenter))
         short_vec = short_vec[1:] + [0]
 
-    print("Done!")
+    if DEBUG:
+        print("Done!")
 
     # store final results in JSON
     beta, delta = dbdd_E.estimate_attack()
     bkz, secret_vecs, basis_vecs = dbdd_E.attack(randomize=True)
-    return seed, {
+    return seed, noise, ({
         "seed": seed,
+        "noise": noise,
         "est": {
             "dim": dbdd_E.dim(),
             "delta": float(delta),
@@ -681,7 +734,7 @@ def do_attack(seed, guessable, noise):
         },
         "BKZ": int(bkz) if bkz != -1 else int(dbdd_E.dim()),
         "outcome": int(1) if bkz != -1 else int(0)
-    }, secret_vecs, basis_vecs
+    }), secret_vecs, basis_vecs
 
 def run_instance(seedgen, iter_id, guessable, noise):
 
@@ -692,13 +745,14 @@ def run_instance(seedgen, iter_id, guessable, noise):
     else:
         seed_for_instance = (int(seedgen) << int(16)) + iter_id
 
-    print(seed_for_instance)
+    if DEBUG:
+        print(seed_for_instance)
 
     try:
         return do_attack(seed_for_instance, guessable, noise)
     except AssertionError:
         # signify invalid instance
-        return -1, None, None, None
+        return -1, None, None, None, None
 
 if __name__ == "__main__":
     # obtain experiment parameters
@@ -707,23 +761,16 @@ if __name__ == "__main__":
     if args.experiment_file is not None:
         with open(args.experiment_file) as f:
             expr_file = json.loads(f.read())
-        experiments = [
-            experiment_from_json(expr)
-            for expr in expr_file["experiments"]
-        ]
+            experiments = experiment_from_json(expr_file["experiments"])
     else:
         experiments = [experiment_from_args(args)]
     assert experiments is not None
     
     out_directory = "out"
     for expr in experiments:
-        # secret_directory = f"out/secrets-{expr.guesses}"
-        # basis_directory = f"out/bases-{expr.guesses}"
         vecs_directory = f"out/vecs-{expr.guesses}"
         mkdir(out_directory, clear=False)
         mkdir(vecs_directory, clear=False)
-        # mkdir(secret_directory, clear=True)
-        # mkdir(basis_directory, clear=True)
         with open(f"{out_directory}/results_{expr.guesses}.json", "w", encoding='utf-8') as f, \
                 ProcessPoolExecutor(max_workers=cpu_count()) as pool:
             f.write("[\n")
@@ -738,16 +785,19 @@ if __name__ == "__main__":
                 # multiprocessing
 
                 if not args.singlethreaded:
-                    for i in range(expr.num):
-                        future = pool.submit(run_instance,
-                            seedgen=expr.seedgen,
-                            iter_id=i,
-                            guessable=expr.guesses,
-                            noise=expr.noise
-                        )
-                        queue.append(future)
+                    for n in expr.noise:
+                        for i in range(expr.num):
+                            future = pool.submit(run_instance,
+                                seedgen=expr.seedgen,
+                                iter_id=(int(n) << int(8)) + i,
+                                guessable=expr.guesses,
+                                noise=n
+                            )
+                            queue.append(future)
+                    noise_success = { n: int(0) for n in expr.noise }
                     for future in as_completed(queue):
-                        iter_id, result, secret_vec, basis_vecs = future.result()
+                        fut_res = future.result()
+                        iter_id, noise, result, secret_vec, basis_vecs = fut_res
                         if iter_id == -1: # failed due to error
                             unsolvable += 1
                             print("Unsolvable instance!")
@@ -760,11 +810,11 @@ if __name__ == "__main__":
                                              result["BKZ"]])
                         # export data in JSON format and sage matrix
                         f.write(f"{json.dumps(result, indent=4)},\n")
-                        # save(secret_vec, f"{secret_directory}/secret_{iter_id:0>2}.sobj")
-                        # save(basis_vecs, f"{basis_directory}/basis_{iter_id:0>2}.sobj")
                         result_vecs = [secret_vec] + basis_vecs
                         save(result_vecs, 
                              f"{vecs_directory}/basis_{iter_id:0>2}.sobj")
+                    with open(f"out/counts_{expr.guesses}.json", "w") as count_file:
+                        json.dump(noise_success, count_file, indent=4)
 
                 # linear
 
@@ -776,7 +826,7 @@ if __name__ == "__main__":
                             guessable=expr.guesses, 
                             noise=expr.noise,
                         )
-                        iter_id, result, secret_vec, basis_vecs = future
+                        iter_id, noise, result, secret_vec, basis_vecs = future
                         if iter_id == -1:   # failed due to error
                             unsolvable += 1
                             print("Unsolvable instance!")
@@ -802,12 +852,13 @@ if __name__ == "__main__":
                 print_exc()
             finally:
                 # save all data
-                f.write(f"{json.dumps(bkz_beta)}\n]")
+                f.write(f"{json.dumps(bkz_beta, indent=4)}\n]")
                 f.close()
                 print(
                     f"successes: {success_count}\t"
                     f"failures: {fail_count}\t"
                     f"unsolvable: {unsolvable}\t"
-                    f"total: {expr.num}")
+                    f"total: {expr.num}"
+                )
                 print(f"Completed at {expr.guesses} guessable")
     sys.exit(0)

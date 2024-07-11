@@ -1,8 +1,15 @@
-{"experiments": [
-    {
-        "guesses": 55,
-        "num-iterations": 1,
-        "noise": 1,
-        "seedgen": 35
-    }
-]}
+{
+	"experiments": [
+		{
+			"guesses": [50, 49, 48, 47, 46],
+			"num-iterations": 5,
+			"noise": {
+				"start": 0.4,
+				"stop": 2.0,
+				"num": 9
+			},
+			"seedgen": 0
+		}
+	]
+}
+

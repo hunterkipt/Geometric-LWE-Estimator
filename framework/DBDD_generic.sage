@@ -8,6 +8,7 @@ load("../framework/proba_utils.sage")
 load("../framework/utils.sage")
 load("../framework/geometry.sage")
 
+DEBUG = True
 
 # Issues with hint that are caught, and only raise a warning
 class RejectedHint(Exception):
@@ -190,7 +191,8 @@ class DBDD_generic:
     def logging(self, message, priority=1, style='NORMAL', newline=True):
         if priority > self.verbosity:
             return
-        logging(message, style=style, newline=newline)
+        if DEBUG:
+            logging(message, style=style, newline=newline)
 
     def check_solution(self, solution):
         """ Checks wether the solution is correct

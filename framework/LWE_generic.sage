@@ -31,9 +31,10 @@ class LWE_generic:
         :D_s: distribution of the secret s (dictionnary form)
         """
 
-        if self.verbosity:
-            logging("     Build DBDD from LWE     ", style="HEADER")
-            logging("n=%3d \t m=%3d \t q=%d" % (self.n, self.m, self.q), style="VALUE")
+        # HIDING
+        # if self.verbosity:
+            # logging("     Build DBDD from LWE     ", style="HEADER")
+            # logging("n=%3d \t m=%3d \t q=%d" % (self.n, self.m, self.q), style="VALUE")
 
 
         # define the mean and sigma of the instance

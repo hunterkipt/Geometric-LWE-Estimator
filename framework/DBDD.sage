@@ -5,6 +5,7 @@ load("../framework/load_strategies.sage")
 load("../framework/DBDD_generic.sage")
 load("../framework/proba_utils.sage")
 
+DEBUG = True
 
 class DBDD(DBDD_generic):
     """
@@ -462,7 +463,7 @@ class DBDD(DBDD_generic):
         bkz = BKZReduction(G)
         if randomize:
             bkz.lll_obj()
-            bkz.randomize_block(0, d, density=d / 4)
+            bkz.randomize_block(0, d, density=floor(d / 4))
             bkz.lll_obj()
 
         u_den = lcm([x.denominator() for x in self.u.list()])
@@ -478,8 +479,9 @@ class DBDD(DBDD_generic):
             beta_pre = 2
         # Run BKZ tours with progressively increasing blocksizes
 
-        print("Secret key:")
-        print(self.u)
+        if DEBUG:
+            print("Secret key:")
+            print(self.u)
         first_secret = str(self.u)
         basis = {}
         basis_vecs = []
@@ -504,9 +506,10 @@ class DBDD(DBDD_generic):
                 bkz(par)
                 bkz.lll_obj()
 
-            print("Secret key:")
-            print(self.u)
-            print("Secret key norm: ", float((self.u).norm()))
+            if DEBUG:
+                print("Secret key:")
+                print(self.u)
+                print("Secret key norm: ", float((self.u).norm()))
             # Stores full basis for either successful or final beta value
             basis["BKZ"] = beta
             secret_vec = self.u # for sage matrix export
@@ -518,11 +521,10 @@ class DBDD(DBDD_generic):
                 v = vec(bkz.A[j])
                 v = u_den * v * L / denom
                 solution = matrix(ZZ, v.apply_map(round)) / u_den
-                print(f"Solution {j}:")
-                print(solution)
-                print("Solution norm: ", float(solution.norm()))
-                # basis[f"v{j:0>3}"] = str(solution)
-                # basis[f"v{j:0>3}_norm"] = float(solution.norm())
+                if DEBUG:
+                    print(f"Solution {j}:")
+                    print(solution)
+                    print("Solution norm: ", float(solution.norm()))
                 basis_vecs.append(solution) # for sage matrix export
                 #with open("outvecs.txt", "a") as f:
                 #    f.write(str(list(solution)))
@@ -538,10 +540,10 @@ class DBDD(DBDD_generic):
                 # if not self.check_solution(solution):
                 #     continue
 
-                # self.logging("Success !", style="SUCCESS")
-                # self.logging("")
-                # # return beta, solution
-                # return basis | { "outcome" : "SUCCESS" }, secret_vec, basis_vecs
+                if DEBUG:
+                    self.logging("Success !", style="SUCCESS")
+                    self.logging("")
+                # return beta, solution
 
                 success |= self.check_solution(solution)
 
@@ -549,11 +551,9 @@ class DBDD(DBDD_generic):
                 continue
             self.logging("Success !", style="SUCCESS")
             self.logging("")
-            # return basis | { "outcome" : "SUCCESS" }, secret_vec, basis_vecs
             return basis["BKZ"], secret_vec, basis_vecs
 
         self.logging("Failure ...", style="FAILURE")
         self.logging("")
         # return None, None
-        # return basis | { "outcome" : "FAILURE" }, secret_vec, basis_vecs
         return -1, secret_vec, basis_vecs
