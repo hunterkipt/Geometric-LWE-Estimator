@@ -763,7 +763,7 @@ if __name__ == "__main__":
             expr_file = json.loads(f.read())
             experiments = experiment_from_json(expr_file["experiments"])
     else:
-        experiments = [experiment_from_args(args)]
+        experiments = experiment_from_args(args)
     assert experiments is not None
     
     out_directory = "out"
