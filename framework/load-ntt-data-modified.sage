@@ -359,7 +359,7 @@ def generate_ntt_instance(ciphertext_ntt, secret_ntt=None):
 def embed_instance_into_dbdd(ciphertext_ntt, v_s_E, m_s_E, v_e_E, m_e_E, v_s_O, m_s_O, v_e_O, m_e_O, secret_ntt=None):
 
     if DEBUG:
-    print("Embedding into DBDD...")
+        print("Embedding into DBDD...")
 
     F = GF(3329)
     q = 3329
@@ -479,7 +479,7 @@ def load_data(filename):
 
 def conv_info(ciphertext_ntt, means_cs, variances_cs, secret_ntt=None):
 
-    if DEBUG
+    if DEBUG:
         print("Converting mean/var data into proper representation...")
 
     # Split the variances into the error part and the part contained in the secret
