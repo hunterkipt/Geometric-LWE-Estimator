@@ -482,7 +482,6 @@ class DBDD(DBDD_generic):
         if DEBUG:
             print("Secret key:")
             print(self.u)
-        first_secret = str(self.u)
         basis = {}
         basis_vecs = []
         secret_vec = self.u
@@ -537,15 +536,17 @@ class DBDD(DBDD_generic):
                 #            print(abs(i), end="")
                 #    print()
 
-                # if not self.check_solution(solution):
-                #     continue
+                valid = self.check_solution(solution)
+                success |= valid
+                if not valid:
+                    continue
 
-                if DEBUG:
-                    self.logging("Success !", style="SUCCESS")
-                    self.logging("")
+                if not DEBUG:
+                    continue
+                self.logging("Success !", style="SUCCESS")
+                self.logging("")
                 # return beta, solution
 
-                success |= self.check_solution(solution)
 
             if not success:
                 continue

@@ -38,6 +38,7 @@ def get_argparse() -> ArgumentParser:
     parser.add_argument("--seedgen", type=int)
     parser.add_argument("--reproduce", type=int, nargs = "?")
     parser.add_argument("--singlethreaded", action='store_true')
+    parser.add_argument("--attack_before_short", action='store_true')
     return parser
 
 def mkdir(path: str, clear=True) -> Path:
@@ -54,9 +55,10 @@ def experiment_from_json(experiments):
             nz = obj.get("noise")
             if nz is not None:
                 stp = (nz["stop"] - nz["start"]) / (nz["num"] - 1)
-                n_lvls = np.arange(nz["start"], nz["stop"] + stp, stp)
+                # n_lvls = np.arange(nz["start"], nz["stop"] + stp, stp)
+                n_lvls = [nz["start"] + (n * stp) for n in range(nz["num"])]
             else:
-                n_lvls = np.ones((1,))
+                n_lvls = [1]
 
             exp_params.append(Experiment(
                 guesses=g,
@@ -587,7 +589,7 @@ def simulation_test(seed, guesses, noise):
     return skpv, bhat, means, variances
 
 
-def do_attack(seed, guessable, noise):
+def do_attack(seed, guessable, noise, attack_before_sv=False):
 
     F = GF(3329)
     q = 3329
@@ -682,6 +684,15 @@ def do_attack(seed, guessable, noise):
 
     # TODO: run attack up to 85
     # duplicate all objects up to here
+    if attack_before_sv:
+        bkz, secret_vecs, basis_vecs = dbdd_E.attack(beta_max=87, randomize=True)
+        return ({
+            "est": {
+                "dim": dbdd_E.dim(),
+            },
+            "BKZ": int(bkz) if bkz != -1 else int(dbdd_E.dim()),
+            "outcome": int(1) if bkz != -1 else int(0)
+        }), ([secret_vecs] + basis_vecs)
 
 #    short_vec = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
@@ -734,9 +745,9 @@ def do_attack(seed, guessable, noise):
         },
         "BKZ": int(bkz) if bkz != -1 else int(dbdd_E.dim()),
         "outcome": int(1) if bkz != -1 else int(0)
-    }), secret_vecs, basis_vecs
+    }), ([secret_vecs] + basis_vecs)
 
-def run_instance(seedgen, iter_id, guessable, noise):
+def run_instance(seedgen, iter_id, guessable, noise, atk_bf_sv=False):
 
     global REPRODUCE
 
@@ -749,7 +760,14 @@ def run_instance(seedgen, iter_id, guessable, noise):
         print(seed_for_instance)
 
     try:
-        return do_attack(seed_for_instance, guessable, noise)
+        seed, noise, results, vectors = do_attack(seed_for_instance, guessable, noise)
+        if not atk_bf_sv:
+            return seed, noise, results, vectors, None
+        results_before_sv, vectors_before_sv = do_attack(seed_for_instance, guessable, noise, attack_before_sv=atk_bf_sv)
+        results["est"]["dim_before_short"] = results_before_sv["est"]["dim"]
+        results["BKZ_before_short"] = results_before_sv["BKZ"]
+        results["outcome_before_short"] = results_before_sv["outcome"]
+        return seed, noise, results, vectors, vectors_before_sv
     except AssertionError:
         # signify invalid instance
         return -1, None, None, None, None
@@ -789,15 +807,15 @@ if __name__ == "__main__":
                         for i in range(expr.num):
                             future = pool.submit(run_instance,
                                 seedgen=expr.seedgen,
-                                iter_id=(int(n) << int(8)) + i,
+                                iter_id=i,
                                 guessable=expr.guesses,
-                                noise=n
+                                noise=n,
+                                atk_bf_sv=args.attack_before_short
                             )
                             queue.append(future)
                     noise_success = { n: int(0) for n in expr.noise }
                     for future in as_completed(queue):
-                        fut_res = future.result()
-                        iter_id, noise, result, secret_vec, basis_vecs = fut_res
+                        iter_id, noise, result, vectors, vectors_before_short = future.result()
                         if iter_id == -1: # failed due to error
                             unsolvable += 1
                             print("Unsolvable instance!")
@@ -808,42 +826,49 @@ if __name__ == "__main__":
                             bkz_beta.append([result["est"]["beta"], 
                                              result["est"]["beta_before_short"], 
                                              result["BKZ"]])
+                            noise_success[noise] += 1
                         # export data in JSON format and sage matrix
                         f.write(f"{json.dumps(result, indent=4)},\n")
-                        result_vecs = [secret_vec] + basis_vecs
-                        save(result_vecs, 
+                        save(vectors, 
                              f"{vecs_directory}/basis_{iter_id:0>2}.sobj")
+                        if vectors_before_short is not None:
+                            save(vectors_before_short, 
+                                 f"{vecs_directory}/basis_{iter_id:0>2}.sobj")
                     with open(f"out/counts_{expr.guesses}.json", "w") as count_file:
                         json.dump(noise_success, count_file, indent=4)
 
                 # linear
 
                 else:
-                    for i in range(expr.num):
-                        future = run_instance(
-                            seedgen=expr.seedgen,
-                            iter_id=i, 
-                            guessable=expr.guesses, 
-                            noise=expr.noise,
-                        )
-                        iter_id, noise, result, secret_vec, basis_vecs = future
-                        if iter_id == -1:   # failed due to error
-                            unsolvable += 1
-                            print("Unsolvable instance!")
-                        if result["outcome"] != "SUCCESS":  # failed due to reaching max BKZ
-                            fail_count += 1
-                        else:
-                            success_count += 1
-                            bkz_beta.append([result["est"]["beta"], 
-                                             result["est"]["beta_before_short"], 
-                                             result["BKZ"]])
-                        # export data in JSON format and sage matrix
-                        f.write(f"{json.dumps(result, indent=4)},\n")
-                        # save(secret_vec, f"{secret_directory}/secret_{iter_id:0>2}.sobj")
-                        # save(basis_vecs, f"{basis_directory}/basis_{iter_id:0>2}.sobj")
-                        result_vecs = [secret_vec] + basis_vecs
-                        save(result_vecs, 
-                             f"{vecs_directory}/basis_{iter_id:0>2}.sobj")
+                    noise_success = { n: int(0) for n in expr.noise }
+                    for n in expr.noise:
+                        for i in range(expr.num):
+                            future = run_instance(
+                                seedgen=expr.seedgen,
+                                iter_id=i, 
+                                guessable=expr.guesses, 
+                                noise=n,
+                                atk_bf_sv=args.attack_before_short
+                            )
+                            iter_id, noise, result, vectors, vectors_before_short = future
+                            if iter_id == -1:   # failed due to error
+                                unsolvable += 1
+                                print("Unsolvable instance!")
+                            if result["outcome"] != "SUCCESS":  # failed due to reaching max BKZ
+                                fail_count += 1
+                            else:   # succeeded
+                                success_count += 1
+                                bkz_beta.append([result["est"]["beta"], 
+                                                 result["est"]["beta_before_short"], 
+                                                 result["BKZ"]])
+                                noise_success[n] += 1
+                            # export data in JSON format and sage matrix
+                            f.write(f"{json.dumps(result, indent=4)},\n")
+                            save(vectors, 
+                                 f"{vecs_directory}/basis_{iter_id:0>2}.sobj")
+                            if vectors_before_short is not None:
+                                save(vectors_before_short, 
+                                     f"{vecs_directory}/basis_{iter_id:0>2}.sobj")
 
                 print("closing")
             except Exception as e:
