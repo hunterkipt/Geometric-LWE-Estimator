@@ -53,7 +53,7 @@ OUTDIR=out
 
 # cd geometricLWE/validation
 cd ${REPOSITORY}/framework
-sage load-ntt-data-modified.sage experiments/small_test.json
+sage load-ntt-data-modified.sage experiments/small_test.json --attack-before-short
 
 # Copy outputs back to home directory
 cp -r ${OUTDIR} ${SLURM_SUBMIT_DIR}/${SLURM_JOBID}

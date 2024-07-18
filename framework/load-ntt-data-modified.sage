@@ -10,6 +10,7 @@ from sage.rings.generic import ProductTree
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from multiprocessing import cpu_count
 from collections import namedtuple
+from enum import Enum
 
 REPRODUCE = None
 DEBUG = True
@@ -20,6 +21,8 @@ load("../framework/LWE.sage")
 load("../framework/utils.sage")
 
 Experiment = namedtuple("Experiment", ["guesses", "num", "noise", "seedgen"])
+
+Outcome = Enum("Outcome", ['SUCCESS', 'FAIL', 'UNSOLVABLE'])
 
 def get_argparse() -> ArgumentParser:
     def validate_file(arg: str) -> Path:
@@ -719,7 +722,7 @@ def do_attack(seed, guessable, noise, attack_before_sv=False):
     # store final results in JSON
     beta, delta = dbdd_E.estimate_attack()
     bkz, secret_vecs, basis_vecs = dbdd_E.attack(randomize=True)
-    return seed, noise, ({
+    return ({
         "seed": seed,
         "noise": noise,
         "est": {
@@ -746,17 +749,32 @@ def run_instance(seedgen, iter_id, guessable, noise, atk_bf_sv=False):
         print(seed_for_instance)
 
     try:
-        seed, noise, results, vectors = do_attack(seed_for_instance, guessable, noise)
+        # Run attack
+        results, vectors = do_attack(
+            seed_for_instance, 
+            guessable, 
+            noise)
+        outcome = Outcome.SUCCESS if results["outcome"] else Outcome.FAIL
+        vecs_directory = f"out/vecs-{guessable}"
+        save(vectors, f"{vecs_directory}/basis_{iter_id:0>3}.sobj")
         if not atk_bf_sv:
-            return seed, noise, results, vectors, None
-        results_before_sv, vectors_before_sv = do_attack(seed_for_instance, guessable, noise, attack_before_sv=atk_bf_sv)
-        results["est"]["dim_before_short"] = results_before_sv["est"]["dim"]
-        results["BKZ_before_short"] = results_before_sv["BKZ"]
-        results["outcome_before_short"] = results_before_sv["outcome"]
-        return seed, noise, results, vectors, vectors_before_sv
+            return outcome, noise, results
+
+        # Run attack without short vectors
+        results_before_short, vectors_before_short = do_attack(
+            seed_for_instance, 
+            guessable, 
+            noise, 
+            attack_before_sv=atk_bf_sv)
+        results["est"]["dim_before_short"] = results_before_short["est"]["dim"]
+        results["BKZ_before_short"] = results_before_short["BKZ"]
+        results["outcome_before_short"] = results_before_short["outcome"]
+        save(vectors_before_short, f"{vecs_directory}/basis_before_short_{iter_id:0>3}.sobj")
+        return outcome, noise, results
     except AssertionError:
         # signify invalid instance
-        return -1, None, None, None, None
+        print("Unsolvable instance!")
+        return Outcome.UNSOLVABLE, None, None
 
 if __name__ == "__main__":
     # obtain experiment parameters
@@ -767,24 +785,25 @@ if __name__ == "__main__":
             expr_file = json.loads(f.read())
             experiments = experiment_from_json(expr_file["experiments"])
     else:
-        experiments = experiment_from_args(args)
+        experiments = [experiment_from_args(args)]
     assert experiments is not None
+
+    first = experiments[0]
+    print(f"Starting at guesses {first.guesses} and noise {first.noise}")
     
     out_directory = "out"
+    mkdir(out_directory, clear=False)
     for expr in experiments:
         vecs_directory = f"out/vecs-{expr.guesses}"
-        mkdir(out_directory, clear=False)
         mkdir(vecs_directory, clear=False)
         with open(f"{out_directory}/results_{expr.guesses}.json", "w", encoding='utf-8') as f, \
                 ProcessPoolExecutor(max_workers=cpu_count()) as pool:
-            f.write("[\n")
+            results_data = []
             try:
                 # collect results for num_experiments iterations
-                queue = []
-                bkz_beta = []
-                unsolvable = 0
-                success_count = 0
-                fail_count = 0
+                queue = []                                          # process queue
+                outcome_lst = []                                    # [experiment_outcomes]
+                noise_success = { n: int(0) for n in expr.noise }   # map[noise] = success_count
 
                 # multiprocessing
 
@@ -799,34 +818,15 @@ if __name__ == "__main__":
                                 atk_bf_sv=args.attack_before_short
                             )
                             queue.append(future)
-                    noise_success = { n: int(0) for n in expr.noise }
                     for future in as_completed(queue):
-                        iter_id, noise, result, vectors, vectors_before_short = future.result()
-                        if iter_id == -1: # failed due to error
-                            unsolvable += 1
-                            print("Unsolvable instance!")
-                        if result["outcome"] == 0: # failed due to reaching max BKZ
-                            fail_count += 1
-                        else:   # succeeded
-                            success_count += 1
-                            bkz_beta.append([result["est"]["beta"], 
-                                             result["est"]["beta_before_short"], 
-                                             result["BKZ"]])
-                            noise_success[noise] += int(1)
-                        # export data in JSON format and sage matrix
-                        f.write(f"{json.dumps(result, indent=4)},\n")
-                        save(vectors, 
-                             f"{vecs_directory}/basis_{iter_id:0>2}.sobj")
-                        if vectors_before_short is not None:
-                            save(vectors_before_short, 
-                                 f"{vecs_directory}/basis_{iter_id:0>2}.sobj")
-                    with open(f"out/counts_{expr.guesses}.json", "w") as count_file:
-                        json.dump(noise_success, count_file, indent=4)
+                        outcome, noise, result = future.result()
+                        outcome_lst.append(outcome)
+                        results_data.append(result)
+                        noise_success[noise] += int(1) if outcome == Outcome.SUCCESS else int(0)
 
                 # linear
 
                 else:
-                    noise_success = { n: int(0) for n in expr.noise }
                     for n in expr.noise:
                         for i in range(expr.num):
                             future = run_instance(
@@ -836,35 +836,26 @@ if __name__ == "__main__":
                                 noise=n,
                                 atk_bf_sv=args.attack_before_short
                             )
-                            iter_id, noise, result, vectors, vectors_before_short = future
-                            if iter_id == -1:   # failed due to error
-                                unsolvable += 1
-                                print("Unsolvable instance!")
-                            if result["outcome"] == 0:  # failed due to reaching max BKZ
-                                fail_count += 1
-                            else:   # succeeded
-                                success_count += 1
-                                bkz_beta.append([result["est"]["beta"], 
-                                                 result["est"]["beta_before_short"], 
-                                                 result["BKZ"]])
-                                noise_success[n] += int(1)
-                            # export data in JSON format and sage matrix
-                            f.write(f"{json.dumps(result, indent=4)},\n")
-                            save(vectors, 
-                                 f"{vecs_directory}/basis_{iter_id:0>2}.sobj")
-                            if vectors_before_short is not None:
-                                save(vectors_before_short, 
-                                     f"{vecs_directory}/basis_{iter_id:0>2}.sobj")
+                            outcome, noise, result = future
+                            outcome_lst.append(outcome)
+                            results_data.append(result)
+                            noise_success[n] += int(1) if outcome == Outcome.SUCCESS else int(0)
 
                 print("closing")
             except Exception as e:
                 from traceback import print_exc
-                print("unknown exception")
+                print("unknown exception in context execution")
                 print_exc()
             finally:
-                # save all data
-                f.write(f"{json.dumps(bkz_beta, indent=4)}\n]")
+                # save results from all experiments in list and noise counts
+                json.dump(results_data, f, indent=4)
                 f.close()
+                with open(f"out/counts_{expr.guesses}.json", "w") as count_file:
+                    json.dump(noise_success, count_file, indent=4)
+                # print counts on the experiment outcomes
+                success_count = outcome_lst.count(Outcome.SUCCESS)
+                fail_count = outcome_lst.count(Outcome.FAIL)
+                unsolvable = outcome_lst.count(Outcome.UNSOLVABLE)
                 print(
                     f"successes: {success_count}\t"
                     f"failures: {fail_count}\t"
