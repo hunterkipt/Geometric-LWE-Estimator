@@ -90,7 +90,7 @@ def experiment_from_args(arg_list):
         Experiment(
             guesses=arg_list.guesses,
             num=arg_list.num_iterations,
-            noise=arg_list.noise,
+            noise=[arg_list.noise],
             seedgen=seedgen,
         )
     ]
@@ -785,12 +785,9 @@ if __name__ == "__main__":
             expr_file = json.loads(f.read())
             experiments = experiment_from_json(expr_file["experiments"])
     else:
-        experiments = [experiment_from_args(args)]
+        experiments = experiment_from_args(args)
     assert experiments is not None
 
-    first = experiments[0]
-    print(f"Starting at guesses {first.guesses} and noise {first.noise}")
-    
     out_directory = "out"
     mkdir(out_directory, clear=False)
     for expr in experiments:
