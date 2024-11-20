@@ -2,7 +2,7 @@ load("../framework/LWE.sage")
 load("../framework/utils.sage")
 
 mu2 = 2
-q = 3329
+q = 524287 # 3329
 
 F = GF(q)
 
