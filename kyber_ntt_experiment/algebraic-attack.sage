@@ -10,50 +10,65 @@ z = var('z')
 
 P = PolynomialRing(F, x)
 
-QP = P.quotient(x^192 + 4092, 'z')
+# QP = P.quotient(x^192 + 4092, 'z')
+QP = P.quotient(x^128 + 524288 * x + 524285, 'z')
 
-ring_a = QP.random_element()
-ring_s = QP([F(randint(0, mu2) - randint(0, mu2)) for _ in range(192)])
-ring_e = QP([F(randint(0, mu2) - randint(0, mu2)) for _ in range(192)])
+ring_a = [
+        QP.random_element(),
+        QP.random_element(),
+        QP.random_element(),
+        QP.random_element()
+        ]
+ring_s = QP([F(randint(0, mu2) - randint(0, mu2)) for _ in range(128)])
+ring_e = [
+        QP([F(randint(0, mu2) - randint(0, mu2)) for _ in range(128)]),
+        QP([F(randint(0, mu2) - randint(0, mu2)) for _ in range(128)]),
+        QP([F(randint(0, mu2) - randint(0, mu2)) for _ in range(128)]),
+        QP([F(randint(0, mu2) - randint(0, mu2)) for _ in range(128)])
+        ]
 
-ring_b = ring_a * ring_s + ring_e
+ring_b = [ring_a[i] * ring_s + ring_e[i] for i in range(4)]
 
 pub_mat = []
 
-for i in range(192):
-    pub_mat.append(list(ring_a * QP(f"x^{i}")))
+for j in range(4):
+    temp = []
+    for i in range(128):
+        temp.append(list(ring_a[j] * QP(f"x^{i}")))
+    temp = matrix(F, 128, 128, temp).T
+    pub_mat.append(temp)
 
-mA = matrix(F, 192, 192, pub_mat).T
+mA = block_matrix(F, 4, 1, pub_mat)
 
-mS = matrix(F, 192, 1, list(ring_s))
+mS = matrix(F, 128, 1, list(ring_s))
 
-mE = matrix(F, 192, 1, list(ring_e))
+mE = matrix(F, 128 * 4, 1, list(ring_e[0]) + list(ring_e[1]) + list(ring_e[2]) + list(ring_e[3]))
 
-mB = matrix(F, 192, 1, list(ring_b))
+mB = matrix(F, 128 * 4, 1, list(ring_b[0]) + list(ring_b[1]) + list(ring_b[2]) + list(ring_b[3]))
 
-assert(mS.T * mA.T + mE.T == mB.T)
+assert(mA * mS + mE == mB)
 
-emb_A = matrix(QQ, 192, 192, pub_mat)
-emb_B = matrix(QQ, 1, 192, list(ring_b))
-emb_S = matrix(QQ, 1, 192, list(ring_s))
-emb_E = matrix(QQ, 1, 192, list(ring_e))
+emb_A = mA.change_ring(QQ).T
+emb_B = mB.change_ring(QQ).T
+emb_S = mS.change_ring(QQ).T
+emb_E = mE.change_ring(QQ).T
 
 
 lwe_inst = LWE(
-        n = 192, 
+        n = 128, 
         q = q, 
-        m = 192, 
+        m = 128 * 4, 
         D_e = None, 
         D_s = None, 
         verbosity=1,
         A = emb_A,
         b = emb_B, 
-        Sigma_s = [QQ(mu2)] * 192, 
-        Sigma_e = [QQ(mu2)] * 192, 
-        mean_s = [0] * 192,
-        mean_e = [0] * 192, 
+        Sigma_s = [QQ(mu2)] * 128, 
+        Sigma_e = [QQ(mu2)] * 128 * 4, 
+        mean_s = [0] * 128,
+        mean_e = [0] * 128 * 4, 
         s = matrix(QQ, list(ring_s)), 
-        e_vec = matrix(QQ, list(ring_e))
+        e_vec = matrix(QQ, emb_E)
 )
 
 
