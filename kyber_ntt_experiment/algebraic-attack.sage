@@ -1,7 +1,7 @@
 load("../framework/LWE.sage")
 load("../framework/utils.sage")
 
-mu = 2
+mu2 = 2
 q = 3329
 
 F = GF(q)
@@ -12,33 +12,31 @@ P = PolynomialRing(F, x)
 
 QP = P.quotient(x^192 + 4092, 'z')
 
-a = QP.random_element()
+ring_a = QP.random_element()
+ring_s = QP([F(randint(0, mu2) - randint(0, mu2)) for _ in range(192)])
+ring_e = QP([F(randint(0, mu2) - randint(0, mu2)) for _ in range(192)])
 
-s = QP([F(randint(0, mu) - randint(0, mu)) for _ in range(192)])
+ring_b = ring_a * ring_s + ring_e
 
-e = QP([F(randint(0, mu) - randint(0, mu)) for _ in range(192)])
-
-b = a * s + e
-
-mat = []
+pub_mat = []
 
 for i in range(192):
-    mat.append(list(a * QP(f"x^{i}")))
+    pub_mat.append(list(ring_a * QP(f"x^{i}")))
 
-A = matrix(F, 192, 192, mat).T
+mA = matrix(F, 192, 192, pub_mat).T
 
-S = matrix(F, 192, 1, list(s))
+mS = matrix(F, 192, 1, list(ring_s))
 
-E = matrix(F, 192, 1, list(e))
+mE = matrix(F, 192, 1, list(ring_e))
 
-B = matrix(F, 192, 1, list(b))
+mB = matrix(F, 192, 1, list(ring_b))
 
-assert(S.T * A.T + E.T == B.T)
+assert(mS.T * mA.T + mE.T == mB.T)
 
-emb_A = matrix(QQ, 192, 192, mat)
-emb_B = matrix(QQ, 1, 192, list(b))
-emb_S = matrix(QQ, 1, 192, list(s))
-emb_E = matrix(QQ, 1, 192, list(e))
+emb_A = matrix(QQ, 192, 192, pub_mat)
+emb_B = matrix(QQ, 1, 192, list(ring_b))
+emb_S = matrix(QQ, 1, 192, list(ring_s))
+emb_E = matrix(QQ, 1, 192, list(ring_e))
 
 
 lwe_inst = LWE(
@@ -50,12 +48,13 @@ lwe_inst = LWE(
         verbosity=1,
         A = emb_A,
         b = emb_B, 
-        Sigma_s = [QQ(2)] * 192, 
-        Sigma_e = [QQ(2)] * 192, 
+        Sigma_s = [QQ(mu2)] * 192, 
+        Sigma_e = [QQ(mu2)] * 192, 
         mean_s = [0] * 192,
         mean_e = [0] * 192, 
-        s = list(s), 
-        e_vec = list(e))
+        s = matrix(QQ, list(ring_s)), 
+        e_vec = matrix(QQ, list(ring_e))
+)
 
 
 dbdd = lwe_inst.embed_into_DBDD()
