@@ -5,6 +5,7 @@ load("../framework/load_strategies.sage")
 load("../framework/DBDD_generic.sage")
 load("../framework/proba_utils.sage")
 
+DEBUG = True
 
 class DBDD(DBDD_generic):
     """
@@ -94,7 +95,6 @@ class DBDD(DBDD_generic):
         # assert V.ncols() == self.dim()
         VS = V * self.S
         den = scal(VS * V.T)
-
         if den == 0:
             raise RejectedHint("Redundant hint")
 
@@ -103,6 +103,7 @@ class DBDD(DBDD_generic):
         num = self.mu * V.T
         self.mu -= (num / den) * VS
         num = VS.T * VS
+        # print(num)
         self.S -= num / den
 
     @not_after_projections
@@ -416,9 +417,12 @@ class DBDD(DBDD_generic):
                                         estimate=False)
         print("Kannan shaping for LWE ellipsoid hints_real c completes.")
 
-    def ellip_norm(self):
-        if self.u is None:
-            raise InvalidArgument("Solution vector must exist to calculate norm")
+    def ellip_norm(self, u=None):
+        if u is None:
+            u = self.u
+
+            if u is None:
+                raise ValueError("Solution vector must exist to calculate norm")
         # DBDD_S = round_matrix_to_rational(self.S)
         try:
             inv = (self.S + self.mu.T*self.mu).inverse()
@@ -426,7 +430,9 @@ class DBDD(DBDD_generic):
         except AssertionError:
             inv = DBDD_S.inverse()
 
-        norm = scal(self.u * inv * self.u.T)
+        except ZeroDivisionError:
+            inv = degen_inverse(self.S + self.mu.T*self.mu)
+        norm = scal(u * inv * u.T)
         return RR(norm)
 
     def attack(self, beta_max=None, beta_pre=None, randomize=False, tours=1):
@@ -457,7 +463,7 @@ class DBDD(DBDD_generic):
         bkz = BKZReduction(G)
         if randomize:
             bkz.lll_obj()
-            bkz.randomize_block(0, d, density=d / 4)
+            bkz.randomize_block(0, d, density=floor(d / 4))
             bkz.lll_obj()
 
         u_den = lcm([x.denominator() for x in self.u.list()])
@@ -472,6 +478,14 @@ class DBDD(DBDD_generic):
         else:
             beta_pre = 2
         # Run BKZ tours with progressively increasing blocksizes
+
+        if DEBUG:
+            print("Secret key:")
+            print(self.u)
+        basis = {}
+        basis_vecs = []
+        secret_vec = self.u
+        success = False
         for beta in range(beta_pre, B.nrows() + 1):
             self.logging("\rRunning BKZ-%d" % beta, newline=False)
             if beta_max is not None:
@@ -479,7 +493,9 @@ class DBDD(DBDD_generic):
                     self.logging("Failure ... (reached beta_max)",
                                  style="SUCCESS")
                     self.logging("")
-                    return None, None
+                    # return None, None
+                    # return basis | { "outcome" : "FAILURE" }, secret_vec, basis_vecs
+                    return -1, secret_vec, basis_vecs
 
             if beta == 2:
                 bkz.lll_obj()
@@ -489,21 +505,56 @@ class DBDD(DBDD_generic):
                 bkz(par)
                 bkz.lll_obj()
 
+            if DEBUG:
+                print("Secret key:")
+                print(self.u)
+                print("Secret key norm: ", float((self.u).norm()))
+            # Stores full basis for either successful or final beta value
+            basis["BKZ"] = beta
+            secret_vec = self.u # for sage matrix export
+            basis_vecs = []
             # Tries all 3 first vectors because of 2 NTRU parasite vectors
-            for j in range(3):
+            for j in range(bkz.A.nrows):
                 # Recover the tentative solution,
                 # undo distorition, scaling, and test it
                 v = vec(bkz.A[j])
                 v = u_den * v * L / denom
                 solution = matrix(ZZ, v.apply_map(round)) / u_den
+                if DEBUG:
+                    print(f"Solution {j}:")
+                    print(solution)
+                    print("Solution norm: ", float(solution.norm()))
+                basis_vecs.append(solution) # for sage matrix export
+                #with open("outvecs.txt", "a") as f:
+                #    f.write(str(list(solution)))
+                #    f.write("\n")
+                #for val in list(solution):
+                #    for i in val:
+                #        if i == 0:
+                #            print(".", end="")
+                #        else:
+                #            print(abs(i), end="")
+                #    print()
 
-                if not self.check_solution(solution):
+                valid = self.check_solution(solution)
+                success |= valid
+                if not valid:
                     continue
 
+                if not DEBUG:
+                    continue
                 self.logging("Success !", style="SUCCESS")
                 self.logging("")
-                return beta, solution
+                # return beta, solution
+
+
+            if not success:
+                continue
+            self.logging("Success !", style="SUCCESS")
+            self.logging("")
+            return basis["BKZ"], secret_vec, basis_vecs
 
         self.logging("Failure ...", style="FAILURE")
         self.logging("")
-        return None, None
+        # return None, None
+        return -1, secret_vec, basis_vecs
