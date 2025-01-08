@@ -64,6 +64,8 @@ class LWE_generic:
         B = kannan_embedding(B, tar)
         D = kannan_embedding(D, concatenate([-b_cen/self.q, [0] * self.n])).T
 
+        # print(vec(D.T[640]) * B)
+
         if self.s is None or self.e_vec is None:
             u = None
 

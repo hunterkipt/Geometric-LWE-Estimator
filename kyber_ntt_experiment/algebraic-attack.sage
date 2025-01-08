@@ -53,6 +53,7 @@ emb_B = mB.change_ring(QQ).T
 emb_S = mS.change_ring(QQ).T
 emb_E = mE.change_ring(QQ).T
 
+emb_B = emb_B.apply_map(recenter)
 
 lwe_inst = LWE(
         n = 128, 

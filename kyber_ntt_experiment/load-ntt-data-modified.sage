@@ -34,14 +34,14 @@ def get_argparse() -> ArgumentParser:
 
     # performs <num-iterations> iterations at <guesses> guesses
     parser = ArgumentParser()
-    parser.add_argument("experiment_file", type=validate_file, nargs = "?")
-    parser.add_argument("--guesses", type=int, default=64)
-    parser.add_argument("--num-iterations", type=int, default=1)
-    parser.add_argument("--noise", type=float, default=1)
-    parser.add_argument("--seedgen", type=int)
-    parser.add_argument("--reproduce", type=int, nargs = "?")
-    parser.add_argument("--singlethreaded", action='store_true')
-    parser.add_argument("--attack-before-short", action='store_true')
+    parser.add_argument("experiment_file", type=validate_file, nargs = "?", help="uses a JSON test structure")
+    parser.add_argument("--guesses", type=int, default=64, help="number of guessable variables")
+    parser.add_argument("--num-iterations", type=int, default=1, help="test replications")
+    parser.add_argument("--noise", type=float, default=1, help="additive gaussian noise, st. dev")
+    parser.add_argument("--seedgen", type=int, help="seed for reproduced instance")
+    parser.add_argument("--reproduce", type=int, nargs = "?", help="used with seedgen for debug")
+    parser.add_argument("--multithreaded", action='store_true', help="use threads on server")
+    parser.add_argument("--attack-before-short", action='store_true', help="attack both with and without short vectors")
     return parser
 
 def mkdir(path: str, clear=True) -> Path:
@@ -496,8 +496,10 @@ def conv_info(ciphertext_ntt, means_cs, variances_cs, secret_ntt=None):
     means_cs_e = [means_cs[2*i] for i in range(128)]
 
     # Get variance and mean of actual secret vectorΠ
-    D_s = build_centered_binomial_law(2)
-    m_sec, v_sec = average_variance(D_s)
+    # D_s = build_centered_binomial_law(2)
+    # D_s = build_Gaussian_law(0.8, 50)
+    # m_sec, v_sec = average_variance(D_s)
+    m_sec, v_sec = 0, 0.8
 
     # Calculate the variance and mean of the secret
     variance_s = variances_cs_s + [v_sec for i in range(128)]
@@ -545,11 +547,13 @@ def simulation_test(seed, guesses, noise):
     q = 3329
 
     D_poly_s = build_centered_binomial_law(2)
+    # D_poly_s = build_Gaussian_law(0.8, 50)
 
     # Resample when s_hat is a zero vector
     skpv = [0]*256
     while not all(skpv[:64]):
-        spoly = vec([draw_from_distribution(D_poly_s) for _ in range(256)])
+        # spoly = vec([draw_from_distribution(D_poly_s) for _ in range(256)])
+        spoly = vec(map(int, map(round, np.random.normal(int(0), 0.8, (256,1,)))))
         V_NTT = gen_full_ntt_matrix()
         skpv_mat =  spoly * V_NTT.T
         skpv = list(skpv_mat[0])
@@ -580,10 +584,10 @@ def simulation_test(seed, guesses, noise):
     for i in range(64 - guesses):
 
         # Simulated variance, much more than normal
-        #D_s = build_centered_binomial_law(1)
-        D_s = build_Gaussian_law(noise, 50)
+        D_s = build_centered_binomial_law(1)
+        # D_s = build_Gaussian_law(noise, 50)
         out_val = draw_from_distribution(D_s)
-        #mean, var = average_variance(D_s)
+        mean, var = average_variance(D_s)
         if DEBUG:
             print ("added noise", out_val)
         means[i] = means[i] + out_val
@@ -688,7 +692,7 @@ def do_attack(seed, guessable, noise, attack_before_sv=False):
         bkz, secret_vecs, basis_vecs = dbdd_E.attack(beta_max=87, randomize=True)
         return ({
             "est": {
-                "dim": dbdd_E.dim(),
+                "dim": int(dbdd_E.dim()),
             },
             "BKZ": int(bkz) if bkz != -1 else int(dbdd_E.dim()),
             "outcome": int(1) if bkz != -1 else int(0)
@@ -723,10 +727,10 @@ def do_attack(seed, guessable, noise, attack_before_sv=False):
     beta, delta = dbdd_E.estimate_attack()
     bkz, secret_vecs, basis_vecs = dbdd_E.attack(randomize=True)
     return ({
-        "seed": seed,
-        "noise": noise,
+        "seed": int(seed),
+        "noise": int(noise),
         "est": {
-            "dim": dbdd_E.dim(),
+            "dim": int(dbdd_E.dim()),
             "delta": float(delta),
             "beta": float(beta),
             "delta_before_short": float(delta_before_short),
@@ -766,9 +770,9 @@ def run_instance(seedgen, iter_id, guessable, noise, atk_bf_sv=False):
             guessable, 
             noise, 
             attack_before_sv=atk_bf_sv)
-        results["est"]["dim_before_short"] = results_before_short["est"]["dim"]
-        results["BKZ_before_short"] = results_before_short["BKZ"]
-        results["outcome_before_short"] = results_before_short["outcome"]
+        results["est"]["dim_before_short"] = int(results_before_short["est"]["dim"])
+        results["BKZ_before_short"] = int(results_before_short["BKZ"])
+        results["outcome_before_short"] = int(results_before_short["outcome"])
         save(vectors_before_short, f"{vecs_directory}/basis_before_short_{iter_id:0>3}.sobj")
         return outcome, noise, results
     except AssertionError:
@@ -798,13 +802,13 @@ if __name__ == "__main__":
             results_data = []
             try:
                 # collect results for num_experiments iterations
-                queue = []                                          # process queue
-                outcome_lst = []                                    # [experiment_outcomes]
-                noise_success = { n: int(0) for n in expr.noise }   # map[noise] = success_count
+                queue = []                                                  # process queue
+                outcome_lst = []                                            # [experiment_outcomes]
+                noise_success = { int(n): int(0) for n in expr.noise }      # map[noise] = success_count
 
                 # multiprocessing
 
-                if not args.singlethreaded:
+                if args.multithreaded:
                     for n in expr.noise:
                         for i in range(expr.num):
                             future = pool.submit(run_instance,
@@ -819,7 +823,7 @@ if __name__ == "__main__":
                         outcome, noise, result = future.result()
                         outcome_lst.append(outcome)
                         results_data.append(result)
-                        noise_success[noise] += int(1) if outcome == Outcome.SUCCESS else int(0)
+                        noise_success[int(noise)] += int(1) if outcome == Outcome.SUCCESS else int(0)
 
                 # linear
 
@@ -836,7 +840,7 @@ if __name__ == "__main__":
                             outcome, noise, result = future
                             outcome_lst.append(outcome)
                             results_data.append(result)
-                            noise_success[n] += int(1) if outcome == Outcome.SUCCESS else int(0)
+                            noise_success[int(n)] += int(1) if outcome == Outcome.SUCCESS else int(0)
 
                 print("closing")
             except Exception as e:
