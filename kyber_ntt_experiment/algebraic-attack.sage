@@ -45,9 +45,18 @@ mA = block_matrix(F, samples, 1, pub_mat)
 
 mS = matrix(F, d, 1, list(ring_s))
 
-mE = matrix(F, d * samples, 1, list(ring_e[0]) + list(ring_e[1]) + list(ring_e[2]) + list(ring_e[3]))
+mE_val = []
+for i in range(samples):
+    mE_val += list(ring_e[i])
 
-mB = matrix(F, d * samples, 1, list(ring_b[0]) + list(ring_b[1]) + list(ring_b[2]) + list(ring_b[3]))
+
+mB_val = []
+for i in range(samples):
+    mB_val += list(ring_b[i])
+
+mE = matrix(F, d * samples, 1, mE_val)
+
+mB = matrix(F, d * samples, 1, mB_val)
 
 assert(mA * mS + mE == mB)
 
