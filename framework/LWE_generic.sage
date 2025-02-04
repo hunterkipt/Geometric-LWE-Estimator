@@ -75,8 +75,7 @@ class LWE_generic:
         return dbdd_class(B, S, mu, self, u, verbosity=self.verbosity, D=D, Bvol=self.m*log(self.q))
 
     def embed_into_DBDD_optimized(self):
-        """
-        Factory method for creating an optimized DBDD instance from the underlying cryptographic instance.
+        """ Factory method for creating an optimized DBDD instance from the underlying cryptographic instance.
         """
         return self.embed_into_DBDD(dbdd_class=DBDD_optimized)
 
