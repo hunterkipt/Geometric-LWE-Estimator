@@ -1,5 +1,6 @@
 load("../framework/LWE.sage")
 load("../framework/utils.sage")
+load("../framework/AttackResults.sage")
 from sage.probability.probability_distribution import GeneralDiscreteDistribution
 
 def bit_reverse_7(x):
@@ -96,7 +97,7 @@ mS = matrix(F, 1, d, list(ring_s))
 
 assert((mD * -mV) + mS == mW)
 
-emb_V = -mV.change_ring(QQ)
+emb_V = -mV.change_ring(QQ).T
 emb_D = mD.change_ring(QQ)
 emb_W = mW.change_ring(QQ)
 emb_S = mS.change_ring(QQ)
@@ -124,7 +125,9 @@ dbdd = lwe_inst.embed_into_DBDD()
 
 dbdd.estimate_attack()
 
-dbdd.attack(randomize=True)
+result = dbdd.attack(randomize=True)
+
+save_results(result, "./out/coldboot-test.pkl")
 
 # a * s + e = b % q
 

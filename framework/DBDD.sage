@@ -4,6 +4,7 @@ from fpylll.algorithms.bkz2 import BKZReduction
 load("../framework/load_strategies.sage")
 load("../framework/DBDD_generic.sage")
 load("../framework/proba_utils.sage")
+load("../framework/AttackResults.sage")
 
 DEBUG = True
 
@@ -27,6 +28,8 @@ class DBDD(DBDD_generic):
         self.B = B  # The lattice Basis
         self.D = D  # The dual Basis
         assert B or D # B or D must be active
+        print("B", B.nrows(), B.ncols())
+        print("D", D.nrows(), D.ncols())
         assert check_basis_consistency(B, D, Bvol)
         self.S = S
         self.PP = 0 * S  # Span of the projections so far (orthonormal)
@@ -35,6 +38,7 @@ class DBDD(DBDD_generic):
         self.homogeneous = homogeneous
         if homogeneous and scal(mu * mu.T) > 0:
             raise InvalidArgument("Homogeneous instances must have mu=0")
+        print("After homogeneous")
         self.u = u
         self.u_original = u
         self.expected_length = RR(sqrt(self.S.trace()) + 1)
@@ -460,6 +464,7 @@ class DBDD(DBDD_generic):
 
         # Build the BKZ object
         G = GSO.Mat(IntegerMatrix.from_matrix(M), float_type=self.float_type)
+        # G = GSO.Mat(IntegerMatrix.from_matrix(M), float_type='dd')
         bkz = BKZReduction(G)
         if randomize:
             bkz.lll_obj()
@@ -482,7 +487,7 @@ class DBDD(DBDD_generic):
         if DEBUG:
             print("Secret key:")
             print(self.u)
-        basis = {}
+        # basis = {}
         basis_vecs = []
         secret_vec = self.u
         success = False
@@ -495,10 +500,12 @@ class DBDD(DBDD_generic):
                     self.logging("")
                     # return None, None
                     # return basis | { "outcome" : "FAILURE" }, secret_vec, basis_vecs
-                    return -1, secret_vec, basis_vecs
+                    # return -1, secret_vec, basis_vecs
+                    return AttackResults(-1, secret_vec, basis_vecs)
 
             if beta == 2:
                 bkz.lll_obj()
+                pass
             else:
                 par = BKZ.Param(block_size=beta,
                                 strategies=strategies, max_loops=tours)
@@ -510,7 +517,7 @@ class DBDD(DBDD_generic):
                 print(self.u)
                 print("Secret key norm: ", float((self.u).norm()))
             # Stores full basis for either successful or final beta value
-            basis["BKZ"] = beta
+            # basis["BKZ"] = beta
             secret_vec = self.u # for sage matrix export
             basis_vecs = []
             # Tries all 3 first vectors because of 2 NTRU parasite vectors
@@ -552,9 +559,11 @@ class DBDD(DBDD_generic):
                 continue
             self.logging("Success !", style="SUCCESS")
             self.logging("")
-            return basis["BKZ"], secret_vec, basis_vecs
+            # return basis["BKZ"], secret_vec, basis_vecs
+            return AttackResults(beta, secret_vec, basis_vecs)
 
         self.logging("Failure ...", style="FAILURE")
         self.logging("")
         # return None, None
-        return -1, secret_vec, basis_vecs
+        # return -1, secret_vec, basis_vecs
+        return AttackResults(-1, secret_vec, basis_vecs)
