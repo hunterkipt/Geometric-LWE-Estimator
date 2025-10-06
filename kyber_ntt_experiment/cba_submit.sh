@@ -51,15 +51,22 @@ cp -r ${SLURM_SUBMIT_DIR}/${REPOSITORY} ${SCRATCH_DIRECTORY}
 
 OUTDIR=out
 
+if [ -n "$1" ]; then
+	NAME="${1}-"
+fi
+
+echo "[SLURM] Results will save to ${NAME}${SLURM_JOBID}"
+
 # cd geometricLWE/validation
-cd ${REPOSITORY}/framework
+cd ${REPOSITORY}/kyber_ntt_experiment
 sage coldboot-attack.sage
 
 # Copy outputs back to home directory
-cp -r ${OUTDIR} ${SLURM_SUBMIT_DIR}/${SLURM_JOBID}
+mkdir ${SLURM_SUBMIT_DIR}/${NAME}${SLURM_JOBID}
+cp -r ${OUTDIR} ${SLURM_SUBMIT_DIR}/${NAME}${SLURM_JOBID}
 cd ${SLURM_SUBMIT_DIR}
-mv geo_LWE_SCA_estimate.out.${SLURM_JOBID} ${SLURM_JOBID}
-mv geo_LWE_SCA_estimate.err.${SLURM_JOBID} ${SLURM_JOBID}
+mv geo_LWE_SCA_estimate.out.${SLURM_JOBID} ${NAME}${SLURM_JOBID}
+mv geo_LWE_SCA_estimate.err.${SLURM_JOBID} ${NAME}${SLURM_JOBID}
 
 
 # Remove code files

@@ -463,7 +463,8 @@ class DBDD(DBDD_generic):
         M = matrix(ZZ, M * denom)
 
         # Build the BKZ object
-        G = GSO.Mat(IntegerMatrix.from_matrix(M), float_type=self.float_type)
+        _ = FPLLL.set_precision(1000)
+        G = GSO.Mat(IntegerMatrix.from_matrix(M), float_type="mpfr")
         # G = GSO.Mat(IntegerMatrix.from_matrix(M), float_type='dd')
         bkz = BKZReduction(G)
         if randomize:
@@ -484,13 +485,31 @@ class DBDD(DBDD_generic):
             beta_pre = 2
         # Run BKZ tours with progressively increasing blocksizes
 
+        # print("GSO Check")
+        # for i in range(bkz.A.nrows):
+        #     # Perform one step of the reduction (e.g., LLL tour)
+        #     bkz.lll_obj(0, 0, bkz.A.nrows)
+        
+        #     # Get the internal GSO object
+        #     gso = bkz_reduction.lll_obj.gso
+        
+        #     # Print the logs after a few steps
+        #     if i % 5 == 0:
+        #         print(f"After step {i}:")
+        #         for j in range(bkz.A.nrows):
+        #             print(f"  log(||b*_{j}||^2): {gso.log_r_sq[j]}")
+
+        # print("Proceeding with attack")
+
         if DEBUG:
             print("Secret key:")
             print(self.u)
         # basis = {}
+        all_vecs = []
         basis_vecs = []
         secret_vec = self.u
         success = False
+        q = 3329
         for beta in range(beta_pre, B.nrows() + 1):
             self.logging("\rRunning BKZ-%d" % beta, newline=False)
             if beta_max is not None:
@@ -501,7 +520,7 @@ class DBDD(DBDD_generic):
                     # return None, None
                     # return basis | { "outcome" : "FAILURE" }, secret_vec, basis_vecs
                     # return -1, secret_vec, basis_vecs
-                    return AttackResults(-1, secret_vec, basis_vecs)
+                    return AttackResults([basis_vecs], secret_vec, -1)
 
             if beta == 2:
                 bkz.lll_obj()
@@ -526,12 +545,14 @@ class DBDD(DBDD_generic):
                 # undo distorition, scaling, and test it
                 v = vec(bkz.A[j])
                 v = u_den * v * L / denom
-                solution = matrix(ZZ, v.apply_map(round)) / u_den
+                solution = list(matrix(ZZ, v.apply_map(round)) / u_den)[0]
+                sol_cen = map(lambda x: x if x < q / 2 else x - q, solution)
+                sol_cen = vec(sol_cen)
                 if DEBUG:
                     print(f"Solution {j}:")
-                    print(solution)
-                    print("Solution norm: ", float(solution.norm()))
-                basis_vecs.append(solution) # for sage matrix export
+                    print(sol_cen)
+                    print("Solution norm: ", float(sol_cen.norm()))
+                basis_vecs.append(sol_cen) # for sage matrix export
                 #with open("outvecs.txt", "a") as f:
                 #    f.write(str(list(solution)))
                 #    f.write("\n")
@@ -554,16 +575,17 @@ class DBDD(DBDD_generic):
                 self.logging("")
                 # return beta, solution
 
+            all_vecs.append(basis_vecs)
 
             if not success:
                 continue
             self.logging("Success !", style="SUCCESS")
             self.logging("")
             # return basis["BKZ"], secret_vec, basis_vecs
-            return AttackResults(beta, secret_vec, basis_vecs)
+            return AttackResults(all_vecs, secret_vec, beta)
 
         self.logging("Failure ...", style="FAILURE")
         self.logging("")
         # return None, None
         # return -1, secret_vec, basis_vecs
-        return AttackResults(-1, secret_vec, basis_vecs)
+        return AttackResults(all_vecs, secret_vec, -1)

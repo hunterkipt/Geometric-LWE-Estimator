@@ -1,7 +1,18 @@
 load("../framework/LWE.sage")
+load("../framework/proba_utils.sage")
 load("../framework/utils.sage")
 load("../framework/AttackResults.sage")
+load("../framework/DBDD.sage")
+
 from sage.probability.probability_distribution import GeneralDiscreteDistribution
+from pathlib import Path
+
+def mkdir(path: str, clear=True) -> Path:
+    p = Path(path)
+    if clear and p.exists():
+        rmtree(p)
+    p.mkdir(parents=True, exist_ok=not clear)
+    return p
 
 def bit_reverse_7(x):
     return int(bin(x)[2:].zfill(7)[::-1], 2)
@@ -40,11 +51,15 @@ rho0 = 0.01
 q = 3329
 samples = 3
 
-# 1 mu (rho0) var (rho0(1-rho0))
-# 2 mu (3 * rho0^2 + 3 * rho0(1-rho0) = 3*rho0) var (5 * rho0(1-rho0) + 9 * rho0^2)
+mu_delta = 0
+mu_delta_sq = 0
 
-mu = {1: rho0, 2: 3 * rho0}
-sigma = {1: rho0 * (1 - rho0), 2: 5 * rho0 + 4 * rho0^2}
+for i in range(2^12):
+    cnt = (bin(i)[2:].zfill(13)).count('1')
+    mu_delta += (i * (rho0^cnt) * ((1-rho0)^(12-cnt)))
+    mu_delta_sq += (i^2 * (rho0^cnt) * ((1-rho0)^(12-cnt)))
+
+S_delta = mu_delta_sq - (mu_delta ^ 2)
 
 F = GF(q)
 
@@ -56,37 +71,26 @@ QP = P.quotient(x^128 + 1, 'z')
 
 d = QP.degree()
 
-k = 2
+k = 1
 
-# modeling: s_twiddle (W) = delta * V_inv + s
+decay = GeneralDiscreteDistribution([1 - rho0, rho0])
+
+# modeling: sample (W) = s * V + Delta (D)
 
 V = gen_half_ntt_matrix()
-
-V_inv = V.inverse()
 
 ring_s = QP([F(randint(0, mu2) - randint(0, mu2)) for _ in range(d)])
 
 ring_s_hat = vector(F, ring_s) * V
 
-decay = GeneralDiscreteDistribution([1 - rho0, rho0])
-
-# error sampled on the s coordinates
 ring_delta = QP([F(sample_err(coeff, decay)) for coeff in ring_s_hat])
 
-w_hat = vector(ring_s_hat) - vector(ring_delta)
+ring_w = QP(list(vector(ring_s_hat) - vector(ring_delta)))
 
-ring_w = QP(list(w_hat * V_inv))
+mV_val = [list(v_elem) for v_elem in V]
 
-mV_val = []
-mD_val = []
-for v_elem, d_elem in zip(V_inv, ring_delta):
-    for j in range(0, 12, k):
-        pos = 12 - k - j
-        mV_val += list((2 ^ pos) * v_elem)
-        mD_val.append(int(d_elem >> pos) & int((1 << k) - 1))
-
-mV = matrix(F, d * (12 // k), d, mV_val)
-mD = matrix(F, 1, d * (12 // k), mD_val)
+mV = matrix(F, d, d, mV_val)
+mD = matrix(F, 1, d, list(ring_delta))
 mW = matrix(F, 1, d, list(ring_w))
 mS = matrix(F, 1, d, list(ring_s))
 
@@ -95,7 +99,11 @@ mS = matrix(F, 1, d, list(ring_s))
 # print("W", mW.nrows(), mW.ncols())
 # print("S", mS.nrows(), mS.ncols())
 
-assert((mD * -mV) + mS == mW)
+assert((mS * mV) - mD == mW)
+
+print("after the assert")
+print("mean", mu_delta)
+print("var", S_delta)
 
 emb_V = -mV.change_ring(QQ).T
 emb_D = mD.change_ring(QQ)
@@ -104,32 +112,49 @@ emb_S = mS.change_ring(QQ)
 
 emb_W = emb_W.apply_map(recenter)
 
-lwe_inst = LWE(
-        n = d * (12 // k), 
-        q = q, 
-        m = d, 
-        D_e = None, 
-        D_s = None, 
-        verbosity=1,
-        A = emb_V,
-        b = emb_W,
-        Sigma_s = [QQ(sigma[k])] * d * (12 // k), 
-        Sigma_e = [QQ(mu2)] * d, 
-        mean_s = [mu[k]] * d * (12 // k),
-        mean_e = [0] * d, 
-        s = emb_D, 
-        e_vec = emb_S
+# perform embedding here
+mu = vec([QQ(mu_delta)] * d + [QQ(0)] * d + [1])
+mu = matrix(QQ, mu)
+
+S = diagonal_matrix(QQ, [QQ(S_delta)] * d + [QQ(mu2)] * d + [0])
+
+B = build_LWE_lattice(-emb_V, q) # primal
+D = build_LWE_lattice(emb_V/q, 1/q) # dual
+
+b_cen = emb_W.apply_map(recenter)
+
+tar = concatenate([b_cen, [0] * d])
+B = kannan_embedding(B, tar)
+D = kannan_embedding(D, concatenate([-b_cen/q, [0] * d])).T
+
+u = concatenate([emb_D, emb_S, [1]])
+
+dbdd_inst = DBDD(
+    B, S, mu, None, u, 
+    verbosity=1, 
+    D=D, 
+    Bvol=d*log(q)
 )
 
-dbdd = lwe_inst.embed_into_DBDD()
+# lwe_inst = LWE(
+#         n = d, 
+#         q = q, 
+#         m = d, 
+#         D_e = None, 
+#         D_s = None, 
+#         verbosity=1,
+#         A = emb_V,
+#         b = emb_W,
+#         Sigma_s = [QQ(mu2)] * d, 
+#         Sigma_e = [QQ(sigma[k])] * d, 
+#         mean_s = [0] * d,
+#         mean_e = [mu[k]] * d, 
+#         s = emb_S, 
+#         e_vec = emb_D
+# )
 
-dbdd.estimate_attack()
+dbdd_inst.estimate_attack()
 
-result = dbdd.attack(randomize=True)
+result = dbdd_inst.attack(beta_max=60)
 
-save_results(result, "./out/coldboot-test.pkl")
-
-# a * s + e = b % q
-
-# A * s + e = b % q <- Rot(a) here
-# bkz on this??
+save_results(result, "./out/results.pkl")
