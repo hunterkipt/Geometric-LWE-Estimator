@@ -46,20 +46,24 @@ def sample_err(coeff, decay_dist):
             offset += 2 ^ i * decay_dist.get_random_element()
     return offset
 
+def decompose(ring_vector):
+    return [list(map(int, bin(elt)[2:].zfill(12)[::-1])) for elt in ring_vector]
+
+
 mu2 = 2
 rho0 = 0.01
 q = 3329
 samples = 3
 
-mu_delta = 0
-mu_delta_sq = 0
-
-for i in range(2^12):
-    cnt = (bin(i)[2:].zfill(13)).count('1')
-    mu_delta += (i * (rho0^cnt) * ((1-rho0)^(12-cnt)))
-    mu_delta_sq += (i^2 * (rho0^cnt) * ((1-rho0)^(12-cnt)))
-
-S_delta = mu_delta_sq - (mu_delta ^ 2)
+# mu_delta = 0
+# mu_delta_sq = 0
+#
+# for i in range(2^12):
+#     cnt = (bin(i)[2:].zfill(13)).count('1')
+#     mu_delta += (i * (rho0^cnt) * ((1-rho0)^(12-cnt)))
+#     mu_delta_sq += (i^2 * (rho0^cnt) * ((1-rho0)^(12-cnt)))
+#
+# S_delta = mu_delta_sq - (mu_delta ^ 2)
 
 F = GF(q)
 
@@ -88,24 +92,36 @@ ring_delta = QP([F(sample_err(coeff, decay)) for coeff in ring_s_hat])
 ring_w = QP(list(vector(ring_s_hat) - vector(ring_delta)))
 
 mV_val = [list(v_elem) for v_elem in V]
+for i in range(d):
+    for j in range(1, 12):
+        mV_val.append(list([0] * (i) + [2 ^ j] + [0] * (d - 1 - i)))
 
-mV = matrix(F, d, d, mV_val)
-mD = matrix(F, 1, d, list(ring_delta))
+mS_val = list(ring_s)
+mD_val = []
+for row in decompose(ring_delta):
+    mS_val.extend(list(map(lambda x: -x, row[1:])))
+    mD_val.append(-1 * row[0])
+
+print(mS_val)
+
+print(len(mV_val), len(mV_val[0]), len(mV_val[130]))
+mV = matrix(F, 12 * d, d, mV_val)
+mD = matrix(F, 1, d, mD_val)
 mW = matrix(F, 1, d, list(ring_w))
-mS = matrix(F, 1, d, list(ring_s))
+mS = matrix(F, 1, 12 * d, mS_val)
 
 # print("V", mV.nrows(), mV.ncols())
 # print("D", mD.nrows(), mD.ncols())
 # print("W", mW.nrows(), mW.ncols())
 # print("S", mS.nrows(), mS.ncols())
 
-assert((mS * mV) - mD == mW)
+assert((mS * mV) + mD == mW)
 
-print("after the assert")
-print("mean", mu_delta)
-print("var", S_delta)
+# print("after the assert")
+# print("mean", mu_delta)
+# print("var", S_delta)
 
-emb_V = -mV.change_ring(QQ).T
+emb_V = mV.change_ring(QQ).T
 emb_D = mD.change_ring(QQ)
 emb_W = mW.change_ring(QQ)
 emb_S = mS.change_ring(QQ)
@@ -113,19 +129,19 @@ emb_S = mS.change_ring(QQ)
 emb_W = emb_W.apply_map(recenter)
 
 # perform embedding here
-mu = vec([QQ(mu_delta)] * d + [QQ(0)] * d + [1])
+mu = vec([QQ(-rho0)] * d + [QQ(0)] * d + [QQ(-rho0)] * (11 * d) + [1])
 mu = matrix(QQ, mu)
 
-S = diagonal_matrix(QQ, [QQ(S_delta)] * d + [QQ(mu2)] * d + [0])
+S = diagonal_matrix(QQ, [QQ(rho0 * (1 - rho0))] * d + [QQ(mu2)] * d + [QQ(rho0 * (1 - rho0))] * (11 * d) + [0])
 
 B = build_LWE_lattice(-emb_V, q) # primal
 D = build_LWE_lattice(emb_V/q, 1/q) # dual
 
 b_cen = emb_W.apply_map(recenter)
 
-tar = concatenate([b_cen, [0] * d])
+tar = concatenate([b_cen, [0] * 12 * d])
 B = kannan_embedding(B, tar)
-D = kannan_embedding(D, concatenate([-b_cen/q, [0] * d])).T
+D = kannan_embedding(D, concatenate([-b_cen/q, [0] * 12 * d])).T
 
 u = concatenate([emb_D, emb_S, [1]])
 
