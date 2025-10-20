@@ -547,6 +547,7 @@ class DBDD(DBDD_generic):
                 v = u_den * v * L / denom
                 solution = list(matrix(ZZ, v.apply_map(round)) / u_den)[0]
                 sol_cen = map(lambda x: x if x < q / 2 else x - q, solution)
+                sol_cen = map(lambda x: x if x > -q / 2 else x + q, solution)
                 sol_cen = vec(sol_cen)
                 if DEBUG:
                     print(f"Solution {j}:")

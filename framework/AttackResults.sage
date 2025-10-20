@@ -12,7 +12,7 @@ class AttackResults:
     bkz: int = 0
 
 def save_results(state: AttackResults, filepath: Path):
-    with open(filepath) as f:
+    with open(filepath, "wb") as f:
         p_dump(state, f)
     # temp_filepath = filepath.with_suffix(".tmp")
 

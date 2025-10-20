@@ -46,38 +46,39 @@ def sample_err(coeff, decay_dist):
             offset += 2 ^ i * decay_dist.get_random_element()
     return offset
 
-def decompose(ring_vector):
-    return [list(map(int, bin(elt)[2:].zfill(12)[::-1])) for elt in ring_vector]
-
+def decompose(ring_vector, word=1, factor=12):
+    width = factor * word
+    assert(width >= ceil(log(3329)/log(2)))
+    bits = list(map(lambda x: bin(x)[2:].zfill(width), ring_vector))
+    return [
+        [
+            int(elt[width - (k + 1) * word:width - k * word], 2)
+            for k in range(factor)
+        ]
+        for elt in bits
+    ]
 
 mu2 = 2
 rho0 = 0.01
 q = 3329
 samples = 3
+num_width = 7
+factor = ceil(ceil(log(q)/log(2))/num_width)
 
-# mu_delta = 0
-# mu_delta_sq = 0
-#
-# for i in range(2^12):
-#     cnt = (bin(i)[2:].zfill(13)).count('1')
-#     mu_delta += (i * (rho0^cnt) * ((1-rho0)^(12-cnt)))
-#     mu_delta_sq += (i^2 * (rho0^cnt) * ((1-rho0)^(12-cnt)))
-#
-# S_delta = mu_delta_sq - (mu_delta ^ 2)
+mu_delta = 0
+S_delta = 0
+for i in range(2^num_width):
+    cnt = (bin(i)[2:].zfill(num_width)).count('1')
+    mu_delta += (i * (rho0^cnt) * ((1-rho0)^(num_width-cnt)))
+    S_delta += (i^2 * (rho0^cnt) * ((1-rho0)^(num_width-cnt)))
+S_delta = S_delta - (mu_delta ^ 2)
+decay = GeneralDiscreteDistribution([1 - rho0, rho0])
 
 F = GF(q)
-
 z = var('z')
-
 P = PolynomialRing(F, x)
-
 QP = P.quotient(x^128 + 1, 'z')
-
 d = QP.degree()
-
-k = 1
-
-decay = GeneralDiscreteDistribution([1 - rho0, rho0])
 
 # modeling: sample (W) = s * V + Delta (D)
 
@@ -93,31 +94,25 @@ ring_w = QP(list(vector(ring_s_hat) - vector(ring_delta)))
 
 mV_val = [list(v_elem) for v_elem in V]
 for i in range(d):
-    for j in range(1, 12):
+    for j in range(num_width, factor * num_width, num_width):
         mV_val.append(list([0] * (i) + [2 ^ j] + [0] * (d - 1 - i)))
 
 mS_val = list(ring_s)
 mD_val = []
-for row in decompose(ring_delta):
+for row in decompose(ring_delta, word=num_width, factor=factor):
     mS_val.extend(list(map(lambda x: -x, row[1:])))
     mD_val.append(-1 * row[0])
 
-print(mS_val)
-
-print(len(mV_val), len(mV_val[0]), len(mV_val[130]))
-mV = matrix(F, 12 * d, d, mV_val)
+mV = matrix(F, factor * d, d, mV_val)
 mD = matrix(F, 1, d, mD_val)
 mW = matrix(F, 1, d, list(ring_w))
-mS = matrix(F, 1, 12 * d, mS_val)
-
+mS = matrix(F, 1, factor * d, mS_val)
 # print("V", mV.nrows(), mV.ncols())
 # print("D", mD.nrows(), mD.ncols())
 # print("W", mW.nrows(), mW.ncols())
 # print("S", mS.nrows(), mS.ncols())
 
 assert((mS * mV) + mD == mW)
-
-# print("after the assert")
 # print("mean", mu_delta)
 # print("var", S_delta)
 
@@ -129,20 +124,22 @@ emb_S = mS.change_ring(QQ)
 emb_W = emb_W.apply_map(recenter)
 
 # perform embedding here
-mu = vec([QQ(-rho0)] * d + [QQ(0)] * d + [QQ(-rho0)] * (11 * d) + [1])
+mu = vec([QQ(-mu_delta)] * d + [QQ(0)] * d + [QQ(-mu_delta)] * ((factor - 1) * d) + [1])
 mu = matrix(QQ, mu)
 
-S = diagonal_matrix(QQ, [QQ(rho0 * (1 - rho0))] * d + [QQ(mu2)] * d + [QQ(rho0 * (1 - rho0))] * (11 * d) + [0])
+S = diagonal_matrix(QQ, 
+        [QQ(S_delta)] * d + 
+        [QQ(mu2)] * d + 
+        [QQ(S_delta)] * ((factor - 1) * d) + 
+        [0])
 
 B = build_LWE_lattice(-emb_V, q) # primal
 D = build_LWE_lattice(emb_V/q, 1/q) # dual
 
 b_cen = emb_W.apply_map(recenter)
-
-tar = concatenate([b_cen, [0] * 12 * d])
+tar = concatenate([b_cen, [0] * factor * d])
 B = kannan_embedding(B, tar)
-D = kannan_embedding(D, concatenate([-b_cen/q, [0] * 12 * d])).T
-
+D = kannan_embedding(D, concatenate([-b_cen/q, [0] * factor * d])).T
 u = concatenate([emb_D, emb_S, [1]])
 
 dbdd_inst = DBDD(
@@ -151,23 +148,6 @@ dbdd_inst = DBDD(
     D=D, 
     Bvol=d*log(q)
 )
-
-# lwe_inst = LWE(
-#         n = d, 
-#         q = q, 
-#         m = d, 
-#         D_e = None, 
-#         D_s = None, 
-#         verbosity=1,
-#         A = emb_V,
-#         b = emb_W,
-#         Sigma_s = [QQ(mu2)] * d, 
-#         Sigma_e = [QQ(sigma[k])] * d, 
-#         mean_s = [0] * d,
-#         mean_e = [mu[k]] * d, 
-#         s = emb_S, 
-#         e_vec = emb_D
-# )
 
 dbdd_inst.estimate_attack()
 
