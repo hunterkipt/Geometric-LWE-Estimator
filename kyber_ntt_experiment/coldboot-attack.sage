@@ -6,6 +6,7 @@ load("../framework/DBDD.sage")
 
 from sage.probability.probability_distribution import GeneralDiscreteDistribution
 from pathlib import Path
+from functools import reduce
 
 def mkdir(path: str, clear=True) -> Path:
     p = Path(path)
@@ -62,7 +63,7 @@ mu2 = 2
 rho0 = 0.01
 q = 3329
 samples = 3
-num_width = 7
+num_width = 1
 factor = ceil(ceil(log(q)/log(2))/num_width)
 
 mu_delta = 0
@@ -148,6 +149,36 @@ dbdd_inst = DBDD(
     D=D, 
     Bvol=d*log(q)
 )
+
+dbdd_inst.estimate_attack()
+
+# 1100 1100 1100
+# [00000000001] [100 1100 1100](11)
+# short vectors - 11 bits = up to 2048 [1] [11]
+# [qI 0 0]
+# [-V_n I_m 0]
+# [e 0 1]
+vecs = [
+    [8] + [0] * 255 + [13] + [0] * 127,
+    [189] + [0] * 255 + [-109] + [0] * 127
+]
+
+for i in range(11 * 127 + 10):
+    sv_list = []
+    for sv in vecs:
+        sv_list.append(
+            reduce(lambda x, y: x + y, [
+                list(map(int, 
+                    (-1)^(v < 0) * bin(abs(v))[2:].zfill(11) 
+                         if i % 2 == 1 else 
+                    (-1)^(v < 0) * bin(abs(v))[-1]
+                )) for i, v in enumerate(sv[:-128])
+            ]) + sv[-128:]
+        )
+
+    for j in range(2):
+        dbdd_inst.integrate_short_vector_hint(matrix(QQ, matrix(F, sv_list[j])).apply_map(recenter))
+        vecs[j] = [0] + vecs[j][:-1]
 
 dbdd_inst.estimate_attack()
 
