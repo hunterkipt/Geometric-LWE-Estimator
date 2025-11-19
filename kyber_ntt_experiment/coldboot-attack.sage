@@ -63,7 +63,7 @@ mu2 = 2
 rho0 = 0.01
 q = 3329
 samples = 3
-num_width = 1
+num_width = 11
 factor = ceil(ceil(log(q)/log(2))/num_width)
 
 mu_delta = 0
@@ -92,6 +92,31 @@ ring_s_hat = vector(F, ring_s) * V
 ring_delta = QP([F(sample_err(coeff, decay)) for coeff in ring_s_hat])
 
 ring_w = QP(list(vector(ring_s_hat) - vector(ring_delta)))
+
+# Read values
+args = parse_args() # gives npz file path
+if filepath in args:
+    instance = AttackResults(args.filepath)
+    ring_s = instance.get_secret()
+    ring_s_hat = vector(F, ring_s) * V
+    ring_delta = instance.get_error()
+    ring_w = QP(list(vector(ring_s_hat) - vector(ring_delta)))
+    short_vecs = instance.retrieve_shortvectors()
+    num_width = 1
+
+    dbdd_inst = DBDD(**args)
+
+    # hint integration
+    for v in short_vecs:
+        sv_list = rotations(v):
+        for sv in sv_list:
+            dbdd_inst.integrate_short_vector_hint(matrix(QQ, matrix(F, sv)).apply_map(recenter))
+
+    dbdd.estimate_attack()
+
+    dbdd.attack()
+
+    
 
 mV_val = [list(v_elem) for v_elem in V]
 for i in range(d):
@@ -158,27 +183,28 @@ dbdd_inst.estimate_attack()
 # [qI 0 0]
 # [-V_n I_m 0]
 # [e 0 1]
-vecs = [
-    [8] + [0] * 255 + [13] + [0] * 127,
-    [189] + [0] * 255 + [-109] + [0] * 127
-]
+# vecs = instance.retrieve_shortvectors()
+# vecs = [
+#     [8] + [0] * 255 + [13] + [0] * 127,
+#     [189] + [0] * 255 + [-109] + [0] * 127
+# ]
 
-for i in range(11 * 127 + 10):
-    sv_list = []
-    for sv in vecs:
-        sv_list.append(
-            reduce(lambda x, y: x + y, [
-                list(map(int, 
-                    (-1)^(v < 0) * bin(abs(v))[2:].zfill(11) 
-                         if i % 2 == 1 else 
-                    (-1)^(v < 0) * bin(abs(v))[-1]
-                )) for i, v in enumerate(sv[:-128])
-            ]) + sv[-128:]
-        )
+# for i in range(11 * 127 + 10):
+#     sv_list = []
+#     for sv in vecs:
+#         sv_list.append(
+#             reduce(lambda x, y: x + y, [
+#                 list(map(int, 
+#                     (-1)^(v < 0) * bin(abs(v))[2:].zfill(11) 
+#                          if i % 2 == 1 else 
+#                     (-1)^(v < 0) * bin(abs(v))[-1]
+#                 )) for i, v in enumerate(sv[:-128])
+#             ]) + sv[-128:]
+#         )
 
-    for j in range(2):
-        dbdd_inst.integrate_short_vector_hint(matrix(QQ, matrix(F, sv_list[j])).apply_map(recenter))
-        vecs[j] = [0] + vecs[j][:-1]
+#     for j in range(2):
+#         dbdd_inst.integrate_short_vector_hint(matrix(QQ, matrix(F, sv_list[j])).apply_map(recenter))
+#         vecs[j] = [0] + vecs[j][:-1]
 
 dbdd_inst.estimate_attack()
 
