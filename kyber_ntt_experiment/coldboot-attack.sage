@@ -7,6 +7,8 @@ load("../framework/DBDD.sage")
 from sage.probability.probability_distribution import GeneralDiscreteDistribution
 from pathlib import Path
 from functools import reduce
+from argparse import ArgumentParser, Namespace
+from os.path import isfile
 
 def mkdir(path: str, clear=True) -> Path:
     p = Path(path)
@@ -14,6 +16,16 @@ def mkdir(path: str, clear=True) -> Path:
         rmtree(p)
     p.mkdir(parents=True, exist_ok=not clear)
     return p
+
+def valid_file(path: str) -> str:
+    if not isfile(path):
+        raise ArgumentTypeError(f"File does not exist: {path}")
+    return path
+
+def parse_arguments() -> Namespace:
+    parser = ArgumentParser(description="Provide filepath of previous results")
+    parser.add_arugment("filepath", type=valid_file, help="Path to the input file")
+    return parser.parse_args()
 
 def bit_reverse_7(x):
     return int(bin(x)[2:].zfill(7)[::-1], 2)
@@ -47,18 +59,20 @@ def sample_err(coeff, decay_dist):
             offset += 2 ^ i * decay_dist.get_random_element()
     return offset
 
-def decompose(ring_vector, word=1, factor=12):
-    width = factor * word
+def decompose(ring_vector, bits_per_word=1, factor=12):
+    width = factor * bits_per_word
     assert(width >= ceil(log(3329)/log(2)))
-    bits = list(map(lambda x: bin(x)[2:].zfill(width), ring_vector))
+    sign_mask = [1 if x >= 0 else -1 for x in ring_vector]
+    bits = list(map(lambda x: bin(abs(x))[2:].zfill(width), ring_vector))
     return [
         [
-            int(elt[width - (k + 1) * word:width - k * word], 2)
+            sign_val * int(elt[width - (k + 1) * bits_per_word:width - k * bits_per_word], 2)
             for k in range(factor)
         ]
-        for elt in bits
+        for elt, sign_val in zip(bits, sign_mask)
     ]
 
+# params
 mu2 = 2
 rho0 = 0.01
 q = 3329
@@ -66,6 +80,34 @@ samples = 3
 num_width = 11
 factor = ceil(ceil(log(q)/log(2))/num_width)
 
+# ring
+F = GF(q)
+z = var('z')
+P = PolynomialRing(F, x)
+QP = P.quotient(x^128 + 1, 'z')
+d = QP.degree()
+V = gen_half_ntt_matrix()
+
+# modeling: sample (W) = s * V + Delta (D)
+# generates samples or reads sample from instance
+args = parse_arguments() # gives npz file path
+if filepath not in args:
+    ring_s = QP([F(randint(0, mu2) - randint(0, mu2)) for _ in range(d)])
+    ring_delta = QP([F(sample_err(coeff, decay)) for coeff in ring_s_hat])
+else:
+    instance = AttackResults(args.filepath)
+    ring_s = instance.get_secret()
+    ring_delta = instance.get_error()
+    short_vecs = instance.retrieve_shortvectors()
+
+    # adjust parameters for full bit decomposition
+    num_width = 1
+    factor = ceil(ceil(log(q)/log(2))/num_width)
+
+ring_s_hat = vector(F, ring_s) * V
+ring_w = QP(list(vector(ring_s_hat) - vector(ring_delta)))
+
+# statistics
 mu_delta = 0
 S_delta = 0
 for i in range(2^num_width):
@@ -75,69 +117,24 @@ for i in range(2^num_width):
 S_delta = S_delta - (mu_delta ^ 2)
 decay = GeneralDiscreteDistribution([1 - rho0, rho0])
 
-F = GF(q)
-z = var('z')
-P = PolynomialRing(F, x)
-QP = P.quotient(x^128 + 1, 'z')
-d = QP.degree()
-
-# modeling: sample (W) = s * V + Delta (D)
-
-V = gen_half_ntt_matrix()
-
-ring_s = QP([F(randint(0, mu2) - randint(0, mu2)) for _ in range(d)])
-
-ring_s_hat = vector(F, ring_s) * V
-
-ring_delta = QP([F(sample_err(coeff, decay)) for coeff in ring_s_hat])
-
-ring_w = QP(list(vector(ring_s_hat) - vector(ring_delta)))
-
-# Read values
-args = parse_args() # gives npz file path
-if filepath in args:
-    instance = AttackResults(args.filepath)
-    ring_s = instance.get_secret()
-    ring_s_hat = vector(F, ring_s) * V
-    ring_delta = instance.get_error()
-    ring_w = QP(list(vector(ring_s_hat) - vector(ring_delta)))
-    short_vecs = instance.retrieve_shortvectors()
-    num_width = 1
-
-    dbdd_inst = DBDD(**args)
-
-    # hint integration
-    for v in short_vecs:
-        sv_list = rotations(v):
-        for sv in sv_list:
-            dbdd_inst.integrate_short_vector_hint(matrix(QQ, matrix(F, sv)).apply_map(recenter))
-
-    dbdd.estimate_attack()
-
-    dbdd.attack()
-
-    
-
+# matrix & decomposition
 mV_val = [list(v_elem) for v_elem in V]
 for i in range(d):
     for j in range(num_width, factor * num_width, num_width):
         mV_val.append(list([0] * (i) + [2 ^ j] + [0] * (d - 1 - i)))
-
 mS_val = list(ring_s)
 mD_val = []
 for row in decompose(ring_delta, word=num_width, factor=factor):
     mS_val.extend(list(map(lambda x: -x, row[1:])))
     mD_val.append(-1 * row[0])
-
-mV = matrix(F, factor * d, d, mV_val)
-mD = matrix(F, 1, d, mD_val)
+mV = matrix(F, len(mV_val), len(mV_val[0]), mV_val)
+mD = matrix(F, 1, len(mD_val), mD_val)
 mW = matrix(F, 1, d, list(ring_w))
-mS = matrix(F, 1, factor * d, mS_val)
+mS = matrix(F, 1, len(mS_val), mS_val)
 # print("V", mV.nrows(), mV.ncols())
 # print("D", mD.nrows(), mD.ncols())
 # print("W", mW.nrows(), mW.ncols())
 # print("S", mS.nrows(), mS.ncols())
-
 assert((mS * mV) + mD == mW)
 # print("mean", mu_delta)
 # print("var", S_delta)
@@ -146,11 +143,13 @@ emb_V = mV.change_ring(QQ).T
 emb_D = mD.change_ring(QQ)
 emb_W = mW.change_ring(QQ)
 emb_S = mS.change_ring(QQ)
-
 emb_W = emb_W.apply_map(recenter)
 
 # perform embedding here
-mu = vec([QQ(-mu_delta)] * d + [QQ(0)] * d + [QQ(-mu_delta)] * ((factor - 1) * d) + [1])
+mu = vec([QQ(-mu_delta)] * d 
+        + [QQ(0)] * d 
+        + [QQ(-mu_delta)] * ((factor - 1) * d) 
+        + [1])
 mu = matrix(QQ, mu)
 
 S = diagonal_matrix(QQ, 
@@ -175,8 +174,17 @@ dbdd_inst = DBDD(
     Bvol=d*log(q)
 )
 
-dbdd_inst.estimate_attack()
+# hint integration
+if short_vecs:
+    print("Estimate pre-hints")
+    dbdd.estimate_attack()
+    print("Integrating hints...")
+    for v in short_vecs:
+        dbdd_inst.integrate_short_vector_hint(
+            matrix(QQ, matrix(F, decompose(v))).apply_map(recenter)
+        )
 
+    
 # 1100 1100 1100
 # [00000000001] [100 1100 1100](11)
 # short vectors - 11 bits = up to 2048 [1] [11]
@@ -207,7 +215,5 @@ dbdd_inst.estimate_attack()
 #         vecs[j] = [0] + vecs[j][:-1]
 
 dbdd_inst.estimate_attack()
-
 result = dbdd_inst.attack(beta_max=60)
-
 save_results(result, "./out/results.pkl")
