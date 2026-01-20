@@ -154,17 +154,20 @@ class EBDD(DBDD_generic):
         value = scal(self.u * v.T)
         return value
 
-    def homogenize_S(self):
+    def homogenize_S(self, embed_coeff=1):
         # print(np.linalg.eigvalsh(self.S))
         dim_ = self.dim()
         self.scale_ellipsoid(dim_)
-        S = block4(self.S + self.mu.T*self.mu, self.mu.T, self.mu, matrix([1]))
+        S = block4(self.S + self.mu.T*self.mu, self.mu.T, self.mu, matrix([embed_coeff]))
         # print(np.linalg.eigvalsh(S))
         return S
 
-    def ellip_norm(self):
-        if self.u is None:
-            raise InvalidArgument("Solution vector must exist to calculate norm")
+    def ellip_norm(self, u=None):
+        if u is None:
+            u = self.u
+
+            if u is None:
+                raise InvalidArgument("Solution vector must exist to calculate norm")
 
         try:
             _, Linv = square_root_inverse_degen(self.S, self.B)
@@ -174,7 +177,7 @@ class EBDD(DBDD_generic):
         except AssertionError:
             inv = self.S.inverse()
 
-        u = self.u if self.offset is None else self.u - self.offset
+        u = u if self.offset is None else u - self.offset
         # if self.integrated_hints:
         #     for index, (S, c, gamma) in enumerate(self.integrated_hints):
         #         u = (u*S.T)[0, 1:]
@@ -536,7 +539,8 @@ class EBDD(DBDD_generic):
             bkz.randomize_block(0, d, density=d / 4)
             bkz.lll_obj()
 
-        u_den = lcm([x.denominator() for x in self.u.list()])
+        # Find least common divisor of secret in case it isn't integer
+        u_den = lcm([x.denominator() for x in self.u.list()]) if self.u is not None else 1
 
         if beta_pre is not None:
             self.logging("\rRunning BKZ-%d (until convergence)" %
@@ -571,16 +575,18 @@ class EBDD(DBDD_generic):
                 # undo distorition, scaling, and test it
                 v = vec(bkz.A[j])
                 v = u_den * v * L / denom
-                solution = matrix(ZZ, v.apply_map(round)) / u_den
+
+                # solution for ellipsoidal embedding is dimension (n + m)
+                solution = matrix(ZZ, v.apply_map(round))[0, :-1] / u_den
 
                 if self.offset is not None:
 
-                    solution_plus = solution[0, :-1] + self.offset
-                    solution_minus = solution[0, :-1] - self.offset
+                    solution_plus = solution + self.offset
+                    solution_minus = solution - self.offset
                     if not self.check_solution(solution_plus) and not self.check_solution(solution_minus):
                         continue
 
-                if self.offset is None and not self.check_solution(solution[0, :-1]):
+                if self.offset is None and not self.check_solution(solution):
                     continue
 
                 self.logging("Success !", style="SUCCESS")
@@ -625,3 +631,31 @@ class EBDD(DBDD_generic):
             self.verbosity = verbosity if (it % report_every == 0) else 0
         self.verbosity = verbosity
         return [vec(M[i]) for i in J]
+
+    def check_solution(self, solution):
+        """ Checks wether the solution is correct
+        If the private attributes of the instance are not None,
+        the solution is compared to them. It outputs True
+        if the solution is indeed the same as the private s and e,
+        False otherwise.
+        If the private e and s are not stored, we check that the
+        solution is small enough.
+        :solution: a vector
+        """
+
+        if self.u is not None:
+            if self.circulant:
+                return (sorted(self.u.list()) == sorted(solution.list())) or (sorted(self.u.list()) == sorted((- solution).list())) 
+            return (self.u == solution or self.u == - vec(solution))
+
+        # print("Solution: ", solution, " Ellip norm: ", self.ellip_norm(solution), self.ellip_norm(-solution), "Expected: ", 1.2*self.expected_length)
+        if self.ellip_norm(solution) > 1.2 * self.expected_length and self.ellip_norm(-solution) > 1.2 * self.expected_length:
+            return False
+ 
+        if self.u is None:
+            return True
+
+        if self.verbosity:
+            self.logging("Found an incorrect short solution.",
+                         priority=-1, style="WARNING")
+        return False

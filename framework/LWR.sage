@@ -8,7 +8,7 @@ class LWR(LWE_generic):
     This class is designed to hold a traditional LWE instance (i.e. sA^T + e = b)
     """
 
-    def __init__(self, n, p, q, m, D_s, verbosity=1, A=None, s=None):
+    def __init__(self, n, p, q, m, D_s, verbosity=1, A=None, s=None, Sigma_s=None, Sigma_e=None, mean_s = None, mean_e = None):
         """
         Constructor that builds an LWE instance
         :n: (integer) size of the secret s
@@ -16,6 +16,10 @@ class LWR(LWE_generic):
         :m: (integer) size of the error e
         :D_e: distribution of the error e (dictionary form)
         :D_s: distribution of the secret s (dictionary form)
+        :Sigma_s: (list) variance of each coordinate of the secret s
+        :Sigma_e: (list) variance of each coordinate of the secret e
+        :mean_s: (list) mean of each coordinate of the secret s
+        :mean_e: (list) mean of each coordinate of the secret e
         """
 
         # Draw random samples if A, s, e not provided.
@@ -34,6 +38,10 @@ class LWR(LWE_generic):
 
         assert (s*A.T + self.e_vec) % q == self.b
         
+        self.Sigma_s = Sigma_s
+        self.Sigma_e = Sigma_e
+        self.mean_s = mean_s
+        self.mean_e = mean_e
         self.n=n
         self.q=q
         self.m=m

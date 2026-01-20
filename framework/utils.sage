@@ -2,7 +2,7 @@ from numpy.random import choice as np_random_choice
 from numpy.linalg import slogdet, qr, cholesky, eigvalsh
 from numpy.linalg import inv as np_inv
 from numpy import array, zeros
-from math import pi, exp
+from math import pi, exp, e
 from scipy.linalg import ldl
 
 print_style = {'SUCCESS': '\x1b[1;37;42m',
@@ -162,7 +162,7 @@ def draw_from_distribution(D):
 
 
 def GH_sv_factor_squared(k):
-    return ((pi * k)**(1. / k) * k / (2. * pi * e))
+    return ((pi * k)**(1. / k) * k / (2. * pi * exp(1)))
 
 
 def compute_delta(k):
@@ -408,7 +408,6 @@ def recenter(elt):
     if elt > q / 2:
         return elt - q
     return elt
-
 
 def get_distribution_from_table(table, multiplicative_factor):
     eta = len(table)
